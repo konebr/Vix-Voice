@@ -1,0 +1,17 @@
+{
+  "name": "Vox Voice",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "remoteEnv": {
+    "ELECTRON_SKIP_BINARY_DOWNLOAD": "1",
+    "WRANGLER_SEND_METRICS": "false"
+  },
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [8787],
+  "portsAttributes": {
+    "8787": {
+      "label": "Vox Voice",
+      "onAutoForward": "notify",
+      "protocol": "http"
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# Copie para .dev.vars e preencha com sua chave do serviço Metered.
+# Necessária para fornecer as credenciais TURN usadas pelas chamadas de voz.
+METERED_TURN_API_KEY=""

@@ -1,0 +1,44 @@
+{
+  "name": "vix-voice",
+  "version": "1.1.0",
+  "description": "Vix Voice é um aplicativo de comunidades, texto e voz.",
+  "author": "Vix Voice",
+  "private": true,
+  "main": "electron-main.cjs",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.preview.jsonc --ip 0.0.0.0 --port 8787",
+    "start": "node server.js",
+    "desktop": "electron .",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.vixvoice.desktop",
+    "productName": "Vix Voice",
+    "artifactName": "Vix-Voice-Setup-${version}.${ext}",
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "asar": true,
+    "files": [
+      "electron-main.cjs",
+      "package.json"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "localtunnel": "^2.0.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "wrangler": "^4.129.0"
+  }
+}
