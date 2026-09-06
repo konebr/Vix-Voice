@@ -92,7 +92,7 @@
     for (const channel of voiceChannels) {
       const block = document.createElement('div'); block.className = 'voice-channel-block';
       const channelButton = button(`◖  ${channel.name}`, `channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`);
-      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; renderVoiceChannels(); await startVoice(); closeMobileChannels?.(); };
+      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); voiceUsers.push({ user_id: state.identity.id, name: state.identity.name, color: state.identity.color, channel: channel.id }); renderVoiceChannels(); await startVoice(); if (!microphoneStream) { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); } closeMobileChannels?.(); };
       block.append(channelButton);
       const users = voiceUsers.filter(user => user.channel === channel.id);
       if (selectedVoiceChannel.id === channel.id) { const target = $('voice-users'); target.replaceChildren(...users.map(simpleVoiceUser)); block.append(target); }
@@ -106,6 +106,8 @@
     const selected = !forceFirst && voiceChannels.find(channel => channel.id === selectedVoiceChannel.id); selectedVoiceChannel = selected || voiceChannels[0] || { id: 'Geral', name: 'Geral' }; renderVoiceChannels(); await refreshVoiceUsers();
   }
   window.reloadVoiceChannels = () => loadVoiceChannels(true);
+  const baseStopVoice = stopVoice;
+  stopVoice = () => { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity?.id); baseStopVoice(); renderVoiceChannels(); };
   const baseLoadServer = loadServer;
   loadServer = async server => { if (state.server?.id !== server.id && microphoneStream) stopVoice(); await baseLoadServer(server); await loadVoiceChannels(true); };
 })();

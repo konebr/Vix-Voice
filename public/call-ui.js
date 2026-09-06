@@ -41,9 +41,10 @@
     const sound = configure(findAction(panel, labels.sound), deafened ? '×' : '◖', deafened ? 'Sem áudio' : 'Ouvir', !deafened);
     const camera = configure(findAction(panel, labels.camera), '▣', cameraStream ? 'Câmera ligada' : 'Câmera', !!cameraStream);
     const screen = configure(findAction(panel, labels.screen), screenStream ? '■' : '↗', screenStream ? 'Parar transmissão' : 'Compartilhar tela', !!screenStream, !!screenStream);
-    const leave = configure(findAction(panel, labels.leave), '☎', 'Sair', false, true);
+    const leave = configure(findAction(panel, labels.leave), '☎', 'Sair da voz', false, true);
+    leave.onclick = () => stopVoice();
     const header = document.createElement('header'); header.className = 'call-panel-head';
-    header.innerHTML = `<div><span class="call-status-dot"></span><strong>${screenStream ? 'Transmitindo' : 'Voz conectada'}</strong></div><small>${selectedVoiceChannel.name}</small>`;
+    header.innerHTML = `<div><span class="call-status-dot${voiceRoomConnected ? '' : ' is-connecting'}"></span><strong>${voiceRoomConnected ? (screenStream ? 'Transmitindo' : 'Voz conectada') : 'Conectando…'}</strong></div><small>${selectedVoiceChannel.name}</small>`;
     const primary = document.createElement('div'); primary.className = 'call-primary-actions'; primary.append(mic, sound, camera);
     const screenRow = document.createElement('div'); screenRow.className = 'call-screen-row'; screenRow.append(screen, leave);
     panel.replaceChildren(header, primary, screenRow, streamSettings()); panel.classList.add('is-connected');
