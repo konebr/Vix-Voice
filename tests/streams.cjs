@@ -30,7 +30,7 @@ function harness() {
         peers.set(person.id, { person, connection: {
           handlers, signalingState: 'stable',
           addEventListener: (type, fn) => { handlers[type] = fn; },
-          addTransceiver: () => ({ sender: { replaceTrack: async track => { peers.get(person.id).sent = track; } } })
+    addTransceiver: kind => ({ sender: { replaceTrack: async track => { peers.get(person.id).sent = track; (peers.get(person.id).sentByKind ||= {})[kind] = track; } } })
         } });
       }
       return peers.get(person.id);
@@ -58,7 +58,7 @@ test('each screen is selected explicitly; stopping another user leaves the viewe
 
 test('ongoing share reaches a late participant and stop/start reuses its sender', async () => {
   const h = harness(), track = { id: 'screen-1', readyState: 'live' };
-  h.context.screenStream = { getVideoTracks: () => [track] };
+  h.context.screenStream = { getVideoTracks: () => [track], getAudioTracks: () => [] };
   await h.sync();
   const peer = h.context.ensureVoicePeer({ id: 'late', name: 'Late' });
   await h.sync();
@@ -67,8 +67,21 @@ test('ongoing share reaches a late participant and stop/start reuses its sender'
   h.context.screenStream = null; await h.sync();
   assert.equal(peer.sent, null);
   assert.equal(h.signals.at(-1).type, 'screen-stop');
-  h.context.screenStream = { getVideoTracks: () => [track] }; await h.sync();
+  h.context.screenStream = { getVideoTracks: () => [track], getAudioTracks: () => [] }; await h.sync();
   assert.equal(peer.sent, track);
+});
+
+test('screen audio uses its own sender and stops together with the screen', async () => {
+  const h = harness(), video = { id: 'video', readyState: 'live' }, audio = { id: 'audio', readyState: 'live' };
+  const peer = h.context.ensureVoicePeer({ id: 'viewer', name: 'Viewer' });
+  h.context.screenStream = { getVideoTracks: () => [video], getAudioTracks: () => [audio] };
+  await h.sync();
+  assert.equal(peer.sentByKind.video, video);
+  assert.equal(peer.sentByKind.audio, audio);
+  h.context.screenStream = null;
+  await h.sync();
+  assert.equal(peer.sentByKind.video, null);
+  assert.equal(peer.sentByKind.audio, null);
 });
 
 test('leaving voice clears all screen choices and playback', () => {

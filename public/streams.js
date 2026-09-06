@@ -8,7 +8,7 @@
   $('voice-users').after(list);
   const viewer = document.createElement('section');
   viewer.hidden = true;
-  viewer.innerHTML = '<header><strong></strong><button type="button">Tela cheia</button><button type="button">Fechar</button></header><video autoplay playsinline muted></video><p role="status"></p>';
+  viewer.innerHTML = '<header><strong></strong><button type="button">Tela cheia</button><button type="button">Fechar</button></header><video autoplay playsinline controls></video><p role="status"></p>';
   viewer.id = 'stream-viewer';
   document.body.append(viewer);
   const video = viewer.querySelector('video');
@@ -27,8 +27,8 @@
     viewer.hidden = false;
     viewer.querySelector('strong').textContent = `Tela de ${item.person.name}`;
     status.textContent = item.track ? '' : 'Aguardando a transmissão…';
-    const stream = item.track ? new MediaStream([item.track]) : null;
-    if (video.srcObject?.getVideoTracks()[0] !== item.track) video.srcObject = stream;
+    const stream = item.track ? new MediaStream([item.track, ...(item.audioTrack ? [item.audioTrack] : [])]) : null;
+    if (video.srcObject?.getVideoTracks()[0] !== item.track || video.srcObject?.getAudioTracks()[0] !== item.audioTrack) video.srcObject = stream;
     if (stream) video.play().catch(() => { status.textContent = 'Clique no vídeo para iniciar.'; });
   }
   video.onclick = () => video.play().then(() => { status.textContent = ''; }).catch(() => {});
@@ -50,12 +50,15 @@
     peer.screenTransceiver = peer.connection.addTransceiver('video', { direction: 'sendrecv' });
     peer.screenSender = peer.screenTransceiver.sender;
     peer.screenApplied = null;
+    peer.screenAudioTransceiver = peer.connection.addTransceiver('audio', { direction: 'sendrecv' });
+    peer.screenAudioApplied = null;
     peer.connection.addEventListener('track', event => {
-      if (event.track.kind !== 'video') return;
+      const screenAudio = event.transceiver === peer.screenAudioTransceiver;
+      if (event.track.kind !== 'video' && !screenAudio) return;
       const item = screens.get(person.id) || { person, active: false };
-      item.track = event.track;
+      if (screenAudio) item.audioTrack = event.track; else item.track = event.track;
       screens.set(person.id, item);
-      event.track.addEventListener('ended', () => remove(person.id), { once: true });
+      event.track.addEventListener('ended', () => { if (screenAudio) { item.audioTrack = null; if (selected === person.id) watch(person.id); } else remove(person.id); }, { once: true });
       if (selected === person.id) watch(person.id);
     });
     return peer;
@@ -85,6 +88,8 @@
       const track = screenStream?.getVideoTracks().find(item => item.readyState === 'live') || null;
       for (const peer of voicePeers.values()) {
         if (!peer.screenSender || peer.connection.signalingState !== 'stable') continue;
+        const audioTrack = track ? screenStream?.getAudioTracks().find(item => item.readyState === 'live') || null : null;
+        if (peer.screenAudioApplied !== audioTrack) { await peer.screenAudioTransceiver.sender.replaceTrack(audioTrack); peer.screenAudioApplied = audioTrack; }
         if (peer.screenApplied === track) continue;
         await peer.screenSender.replaceTrack(track);
         peer.screenApplied = track;

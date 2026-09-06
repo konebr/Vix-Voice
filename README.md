@@ -21,7 +21,7 @@ O ambiente pode ser suspenso por inatividade e está sujeito à franquia e cobra
 
 ## Transmissões por participante
 
-Entre no canal de voz e clique em compartilhar tela. As telas disponíveis aparecem abaixo dos participantes, com o nome de quem transmite e um botão **Assistir**. Você escolhe qual tela abrir, pode trocar de participante, fechar ou ampliar a imagem. A voz continua tocando separadamente. Nesta versão, a transmissão compartilha a imagem da tela; o áudio do sistema não é transmitido.
+Entre no canal de voz e clique em compartilhar tela. As telas disponíveis aparecem abaixo dos participantes, com o nome de quem transmite e um botão **Assistir**. Você escolhe qual tela abrir, pode trocar de participante, fechar ou ampliar a imagem. A voz continua tocando separadamente. Antes de compartilhar, escolha 480p, 720p ou 1080p e se deseja incluir áudio. O som depende da fonte e do navegador: prefira compartilhar uma aba com a opção de áudio marcada. O vídeo tem controles de volume próprios e só reproduz a transmissão escolhida. A resolução é uma preferência e pode ser ajustada pelo navegador. Para mudar a qualidade, pare e inicie outra transmissão.
 
 ## Preservar os dados
 
