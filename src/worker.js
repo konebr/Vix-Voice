@@ -144,3 +144,58 @@ Servers.prototype.fetch=async function(req){
   }
   return managedServerFetch.call(this,req);
 };
+
+// Sinalização por HTTP para ambientes com proxy, como GitHub Codespaces.
+// O áudio continua trafegando diretamente por WebRTC; somente ofertas e ICE passam aqui.
+const pollingSignalFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(req){
+  const u=new URL(req.url),match=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice-signal$/);
+  if(!match)return pollingSignalFetch.call(this,req);
+  const user=await this.user(req),serverId=match[1],session=String(u.searchParams.get('session')||'').slice(0,80);
+  if(!user)return j({error:'Não autenticado'},401);
+  if(!this.member(serverId,user))return j({error:'Sem acesso'},403);
+  if(!session)return j({error:'Sessão de voz inválida.'},400);
+  const rooms=this.voicePollRooms||(this.voicePollRooms=new Map()),room=rooms.get(serverId)||(rooms.set(serverId,new Map()),rooms.get(serverId));
+  const now=Date.now(),emit=(peer,message)=>{peer.events.push(message);if(peer.events.length>100)peer.events.splice(0,peer.events.length-100)},depart=peer=>{room.delete(peer.session);if(peer.joined)for(const other of room.values())if(other.joined&&other.channel===peer.channel)emit(other,{type:'voice-leave',from:{id:peer.user.id,name:peer.user.name,color:peer.user.color}})};
+  for(const peer of [...room.values()])if(now-peer.updated>15000)depart(peer);
+  let peer=room.get(session);
+  if(peer&&peer.user.id!==user.id)return j({error:'Esta sessão de voz pertence a outro usuário.'},403);
+  if(req.method==='POST'){
+    const message=await req.json().catch(()=>({}));
+    if(!peer){peer={session,user,channel:null,joined:false,updated:now,events:[]};room.set(session,peer)}
+    peer.updated=now;
+    const from={id:user.id,name:user.name,color:user.color},outgoing={...message,from};
+    if(message.type==='voice-join'){
+      const channel=String(message.channel||'Geral').slice(0,64);
+      if(peer.joined&&peer.channel!==channel)for(const other of room.values())if(other!==peer&&other.joined&&other.channel===peer.channel)emit(other,{type:'voice-leave',from});
+      peer.channel=channel;peer.joined=true;
+      for(const other of room.values())if(other!==peer&&other.joined&&other.channel===channel)emit(other,outgoing);
+      return j({ok:true});
+    }
+    if(message.type==='voice-leave'){depart(peer);if(!room.size)rooms.delete(serverId);return j({ok:true})}
+    if(message.to){for(const other of room.values())if(other.user.id===message.to&&other.joined&&other.channel===peer.channel)emit(other,outgoing)}
+    else for(const other of room.values())if(other!==peer&&other.joined&&other.channel===peer.channel)emit(other,outgoing);
+    return j({ok:true});
+  }
+  if(req.method==='GET'){
+    if(!peer||!peer.joined)return j({error:'A sessão de voz não está conectada.'},409);
+    peer.updated=now;const events=peer.events.splice(0);return j({events});
+  }
+  if(req.method==='DELETE'){if(peer)depart(peer);if(!room.size)rooms.delete(serverId);return j({ok:true})}
+  return j({error:'Método inválido.'},405);
+};
+
+// A lista lateral reflete tanto conexões WebSocket antigas quanto o transporte HTTP.
+const pollingPresenceFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(req){
+  const u=new URL(req.url),match=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice$/);
+  if(!match||req.method!=='GET')return pollingPresenceFetch.call(this,req);
+  const user=await this.user(req),serverId=match[1];
+  if(!user)return j({error:'Não autenticado'},401);
+  if(!this.member(serverId,user))return j({error:'Sem acesso'},403);
+  const users=new Map(),now=Date.now();
+  for(const peer of this.voiceSockets?.get(serverId)||[])if(peer.joined&&peer.socket.readyState===1)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,channel:peer.channel||'Geral'});
+  const room=this.voicePollRooms?.get(serverId);
+  for(const peer of room?.values()||[])if(peer.joined&&now-peer.updated<=15000)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,channel:peer.channel||'Geral'});
+  return j({users:[...users.values()].sort((a,b)=>a.name.localeCompare(b.name))});
+};

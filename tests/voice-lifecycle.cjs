@@ -3,32 +3,42 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-test('voice becomes connected only after the socket opens and refreshes presence immediately', () => {
+function harness({ reject = false } = {}) {
   const source = fs.readFileSync('public/app.js', 'utf8');
-  const line = source.match(/function connectVoiceSignal\(\)[^\n]+/)[0];
-  let socket, refreshes = 0, stops = 0; const sent = [];
-  class WebSocket {
-    static OPEN = 1;
-    constructor(url) { this.url = url; socket = this; }
-  }
+  const pathLine = source.match(/function voiceSignalPath\(\)[^\n]+/)[0];
+  const connectLine = source.match(/async function connectVoiceSignal\(\)[^\n]+/)[0];
+  const requests = [], alerts = [];
   const context = {
     state: { server: { id: 'server' }, identity: { token: 'token' } },
     selectedVoiceChannel: { id: 'games', name: 'Games' },
-    voiceSocket: null, voiceRoomConnected: false, microphoneStream: { active: true },
-    location: { protocol: 'https:', host: 'vox.test' }, WebSocket, encodeURIComponent,
-    sendVoiceSignal(message) { sent.push(message); },
-    renderVoicePanel() {}, setTimeout(callback) { callback(); }, refreshVoiceUsers() { refreshes++; },
-    handleVoiceSignal() {},
-    stopVoice() { stops++; this.microphoneStream = null; }, $: () => ({ title: '' }),
-    alert() {}, window: {}, refreshPrivateRail: () => Promise.resolve(), openPicker() {}
+    voiceSignalSession: null, voiceRoomConnected: false, voiceSignalFailures: 0,
+    voiceSignalTimer: null, microphoneStream: { active: true },
+    crypto: { randomUUID: () => 'session-id' }, encodeURIComponent, JSON,
+    async api(path, options) { requests.push({ path, options }); if (reject) throw Error('servidor indisponível'); return options ? { ok: true } : { users: [] }; },
+    renderVoicePanel() {}, async refreshVoiceUsers() {}, setInterval: () => 7,
+    pollVoiceSignal() {}, stopVoice() { context.stopped = true; }, stopped: false,
+    alert(message) { alerts.push(message); }
   };
-  vm.createContext(context); vm.runInContext(line, context); context.connectVoiceSignal();
+  vm.createContext(context); vm.runInContext(`${pathLine}\n${connectLine}`, context);
+  return { context, requests, alerts };
+}
+
+test('voice becomes connected only after the HTTP signaling join succeeds', async () => {
+  const { context, requests } = harness();
+  const pending = context.connectVoiceSignal();
   assert.equal(context.voiceRoomConnected, false);
-  socket.onopen();
+  await pending;
   assert.equal(context.voiceRoomConnected, true);
-  assert.equal(sent[0].channel, 'games');
-  assert.equal(refreshes, 1);
-  socket.onclose({ code: 1006 });
+  assert.equal(context.voiceSignalSession, 'session-id');
+  assert.equal(requests[0].path, '/api/servers/server/voice-signal?session=session-id');
+  assert.deepEqual(JSON.parse(requests[0].options.body), { type: 'voice-join', channel: 'games' });
+});
+
+test('failed signaling leaves voice instead of remaining stuck on connecting', async () => {
+  const { context, alerts } = harness({ reject: true });
+  await context.connectVoiceSignal();
   assert.equal(context.voiceRoomConnected, false);
-  assert.equal(stops, 1);
+  assert.equal(context.voiceSignalSession, null);
+  assert.equal(context.stopped, true);
+  assert.match(alerts[0], /Não foi possível entrar/);
 });
