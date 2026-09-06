@@ -38,6 +38,12 @@ O backup inclui os bancos de contas e sessões: guarde-o em local privado. A pas
 
 Para restaurar, pare o Vox, renomeie `.wrangler/state` para guardar o estado atual e copie a pasta `state` do backup para `.wrangler/state`. Inicie novamente com `npm run dev`. Isso restaura todos os dados para o momento da cópia.
 
+## Gerenciar servidores
+
+Clique na seta ao lado do nome do servidor para abrir as configurações. Donos e administradores podem editar o nome e o ícone, criar, renomear e excluir canais de voz. Somente o dono pode promover ou rebaixar administradores. Donos e administradores podem remover membros comuns; administradores não podem remover outros administradores, e o dono não pode ser removido. O servidor sempre mantém pelo menos um canal de voz.
+
+Cada canal de voz é uma sala isolada: participantes, áudio, câmera e transmissão de tela só são enviados para pessoas que estiverem no mesmo canal.
+
 ## Executar localmente
 
 Com Node.js 22 instalado:

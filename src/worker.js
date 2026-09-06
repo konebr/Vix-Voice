@@ -24,11 +24,123 @@ Servers.prototype.fetch=async function(req){const u=new URL(req.url),response=aw
 
 // Presença de voz e administração de canais por dono/admin.
 const communityFetch=Servers.prototype.fetch;
-Servers.prototype.fetch=async function(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_presence(server_id TEXT,channel TEXT,user_id TEXT,name TEXT,color TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');const voice=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice$/),channel=u.pathname.match(/^\/api\/servers\/([\w-]+)\/channels\/([\w-]+)$/);if(voice){const serverId=voice[1];if(!this.member(serverId,user))return j({error:'Sem acesso'},403);if(req.method==='GET'){const users=new Map();for(const peer of this.voiceSockets?.get(serverId)||[]){if(peer.joined&&peer.socket.readyState===1)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,channel:'Geral'});}return j({users:[...users.values()].sort((a,b)=>a.name.localeCompare(b.name))})}if(req.method==='POST'){const body=await req.json(),name=String(body.channel||'Geral').slice(0,32);this.c.storage.sql.exec('INSERT OR REPLACE INTO voice_presence VALUES(?,?,?,?,?,?)',serverId,name,user.id,user.name,user.color||'#5865f2',Date.now());return j({ok:true})}if(req.method==='DELETE'){this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND user_id=?',serverId,user.id);return j({ok:true})}}if(channel){const serverId=channel[1],oldName=channel[2];if(!this.admin(serverId,user))return j({error:'Apenas dono ou administradores podem gerenciar canais.'},403);if(req.method==='PATCH'){const body=await req.json(),name=String(body.name||'').toLowerCase().replace(/\s+/g,'-').slice(0,32);if(!/^[a-z0-9_-]{1,32}$/.test(name))return j({error:'Nome de canal inválido.'},400);if(one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,name)))return j({error:'Já existe um canal com este nome.'},409);this.c.storage.sql.exec('UPDATE channels SET name=? WHERE server_id=? AND name=?',name,serverId,oldName);this.c.storage.sql.exec('UPDATE messages SET channel=? WHERE server_id=? AND channel=?',name,serverId,oldName);return j({name})}if(req.method==='DELETE'){if(oldName==='geral')return j({error:'O canal #geral não pode ser removido.'},400);this.c.storage.sql.exec('DELETE FROM messages WHERE server_id=? AND channel=?',serverId,oldName);this.c.storage.sql.exec('DELETE FROM channels WHERE server_id=? AND name=?',serverId,oldName);return j({ok:true})}}return communityFetch.call(this,req)};
+Servers.prototype.fetch=async function(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_presence(server_id TEXT,channel TEXT,user_id TEXT,name TEXT,color TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');const voice=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice$/),channel=u.pathname.match(/^\/api\/servers\/([\w-]+)\/channels\/([\w-]+)$/);if(voice){const serverId=voice[1];if(!this.member(serverId,user))return j({error:'Sem acesso'},403);if(req.method==='GET'){const users=new Map();for(const peer of this.voiceSockets?.get(serverId)||[]){if(peer.joined&&peer.socket.readyState===1)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,channel:peer.channel||'Geral'});}return j({users:[...users.values()].sort((a,b)=>a.name.localeCompare(b.name))})}if(req.method==='POST'){const body=await req.json(),name=String(body.channel||'Geral').slice(0,64);this.c.storage.sql.exec('INSERT OR REPLACE INTO voice_presence VALUES(?,?,?,?,?,?)',serverId,name,user.id,user.name,user.color||'#5865f2',Date.now());return j({ok:true})}if(req.method==='DELETE'){this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND user_id=?',serverId,user.id);return j({ok:true})}}if(channel){const serverId=channel[1],oldName=channel[2];if(!this.admin(serverId,user))return j({error:'Apenas dono ou administradores podem gerenciar canais.'},403);if(req.method==='PATCH'){const body=await req.json(),name=String(body.name||'').toLowerCase().replace(/\s+/g,'-').slice(0,32);if(!/^[a-z0-9_-]{1,32}$/.test(name))return j({error:'Nome de canal inválido.'},400);if(one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,name)))return j({error:'Já existe um canal com este nome.'},409);this.c.storage.sql.exec('UPDATE channels SET name=? WHERE server_id=? AND name=?',name,serverId,oldName);this.c.storage.sql.exec('UPDATE messages SET channel=? WHERE server_id=? AND channel=?',name,serverId,oldName);return j({name})}if(req.method==='DELETE'){if(oldName==='geral')return j({error:'O canal #geral não pode ser removido.'},400);this.c.storage.sql.exec('DELETE FROM messages WHERE server_id=? AND channel=?',serverId,oldName);this.c.storage.sql.exec('DELETE FROM channels WHERE server_id=? AND name=?',serverId,oldName);return j({ok:true})}}return communityFetch.call(this,req)};
 
 // Sinalização WebRTC: encaminha ofertas, respostas e ICE apenas entre membros do mesmo servidor.
-Servers.prototype.websocket=function(req,serverId,user){if(!this.member(serverId,user))return new Response('Sem acesso',{status:403});const pair=new WebSocketPair(),client=pair[0],socket=pair[1];socket.accept();const rooms=this.voiceSockets||(this.voiceSockets=new Map()),room=rooms.get(serverId)||(rooms.set(serverId,new Set()),rooms.get(serverId)),entry={socket,user};room.add(entry);const emit=(target,message)=>{try{target.send(JSON.stringify(message))}catch{}};socket.addEventListener('message',event=>{let message;try{message=JSON.parse(event.data)}catch{return}const outgoing={...message,from:{id:user.id,name:user.name,color:user.color}};if(message.type==='voice-join'){if(entry.joined)return;entry.joined=true;for(const peer of room)if(peer!==entry&&peer.joined)emit(peer.socket,outgoing);return}if(message.type==='voice-leave')entry.joined=false;if(message.to){for(const peer of room)if(peer.user.id===message.to)emit(peer.socket,outgoing);return}for(const peer of room)if(peer!==entry)emit(peer.socket,outgoing)});socket.addEventListener('close',()=>{room.delete(entry);for(const peer of room)emit(peer.socket,{type:'voice-leave',from:{id:user.id,name:user.name,color:user.color}});if(!room.size)rooms.delete(serverId)});return new Response(null,{status:101,webSocket:client})};
+Servers.prototype.websocket=function(req,serverId,user){
+  if(!this.member(serverId,user))return new Response('Sem acesso',{status:403});
+  const pair=new WebSocketPair(),client=pair[0],socket=pair[1];socket.accept();
+  const rooms=this.voiceSockets||(this.voiceSockets=new Map()),room=rooms.get(serverId)||(rooms.set(serverId,new Set()),rooms.get(serverId)),entry={socket,user,channel:null,joined:false};room.add(entry);
+  const emit=(target,message)=>{try{target.send(JSON.stringify(message))}catch{}};
+  socket.addEventListener('message',event=>{
+    let message;try{message=JSON.parse(event.data)}catch{return}
+    const outgoing={...message,from:{id:user.id,name:user.name,color:user.color}};
+    if(message.type==='voice-join'){
+      const channel=String(message.channel||'Geral').slice(0,64);
+      if(entry.joined&&entry.channel===channel)return;
+      if(entry.joined)for(const peer of room)if(peer!==entry&&peer.joined&&peer.channel===entry.channel)emit(peer.socket,{type:'voice-leave',from:outgoing.from});
+      entry.channel=channel;entry.joined=true;
+      for(const peer of room)if(peer!==entry&&peer.joined&&peer.channel===entry.channel)emit(peer.socket,outgoing);
+      return;
+    }
+    if(message.type==='voice-leave')entry.joined=false;
+    if(message.to){for(const peer of room)if(peer.user.id===message.to&&peer.joined&&peer.channel===entry.channel)emit(peer.socket,outgoing);return}
+    for(const peer of room)if(peer!==entry&&peer.joined&&peer.channel===entry.channel)emit(peer.socket,outgoing);
+  });
+  socket.addEventListener('close',()=>{room.delete(entry);for(const peer of room)if(peer.joined&&peer.channel===entry.channel)emit(peer.socket,{type:'voice-leave',from:{id:user.id,name:user.name,color:user.color}});if(!room.size)rooms.delete(serverId)});
+  return new Response(null,{status:101,webSocket:client});
+};
 
 // Perfis mínimos por servidor para a lista de membros.
 const memberFetch=Servers.prototype.fetch;
 Servers.prototype.fetch=async function(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,PRIMARY KEY(server_id,user_id))');const match=u.pathname.match(/^\/api\/servers\/([\w-]+)\/members$/);if(match){const serverId=match[1];if(!this.member(serverId,user))return j({error:'Sem acesso'},403);if(req.method==='POST'){const body=await req.json();this.c.storage.sql.exec('INSERT OR REPLACE INTO member_profiles VALUES(?,?,?,?)',serverId,user.id,String(body.name||user.name).slice(0,24),String(body.color||user.color||'#5865f2'));return j({ok:true})}if(req.method==='GET')return j({members:[...this.c.storage.sql.exec('SELECT members.user_id,members.role,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(member_profiles.color,"#5865f2") AS color FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id WHERE members.server_id=? ORDER BY members.role DESC,name',serverId)]})}return memberFetch.call(this,req)};
+
+// Administração persistente do servidor, funções e canais de voz.
+const managedServerFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(req){
+  const u=new URL(req.url);
+  const hasManagedBody=(req.method==='PATCH'&&(/^\/api\/servers\/[\w-]+$/.test(u.pathname)||/^\/api\/servers\/[\w-]+\/(?:voice-channels|members)\/[\w-]+$/.test(u.pathname)))||(req.method==='POST'&&/^\/api\/servers\/[\w-]+\/voice-channels$/.test(u.pathname));
+  const managedBody=hasManagedBody?await req.json().catch(()=>({})):null;
+  const user=await this.user(req);
+  if(!user)return j({error:'Não autenticado'},401);
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_channels(id TEXT PRIMARY KEY,server_id TEXT,name TEXT,created INTEGER,UNIQUE(server_id,name))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,PRIMARY KEY(server_id,user_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_presence(server_id TEXT,channel TEXT,user_id TEXT,name TEXT,color TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');
+  const serverId=u.pathname.match(/^\/api\/servers\/([\w-]+)(?:\/|$)/)?.[1];
+  const seedVoiceChannels=id=>{if(!one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? LIMIT 1',id)))this.c.storage.sql.exec('INSERT INTO voice_channels VALUES(?,?,?,?)',crypto.randomUUID(),id,'Geral',Date.now())};
+  const server=serverId&&one(this.c.storage.sql.exec('SELECT * FROM servers WHERE id=?',serverId));
+  const role=serverId&&this.member(serverId,user);
+  const isOwner=!!server&&server.owner===user.id;
+  const canManage=isOwner||role==='Admin';
+  const management=u.pathname.match(/^\/api\/servers\/([\w-]+)\/manage$/);
+  if(management&&req.method==='GET'){
+    if(!role)return j({error:'Sem acesso'},403);
+    seedVoiceChannels(serverId);
+    const members=[...this.c.storage.sql.exec('SELECT members.user_id,members.role,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(member_profiles.color,"#5865f2") AS color FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id WHERE members.server_id=? ORDER BY CASE members.role WHEN "Dono" THEN 0 WHEN "Admin" THEN 1 ELSE 2 END,name',serverId)];
+    const voiceChannels=[...this.c.storage.sql.exec('SELECT id,name,created FROM voice_channels WHERE server_id=? ORDER BY created,name',serverId)];
+    return j({server,role,isOwner,canManage,members,voiceChannels});
+  }
+  if(server&&u.pathname===`/api/servers/${serverId}`&&req.method==='PATCH'){
+    if(!canManage)return j({error:'Apenas dono ou administradores podem editar o servidor.'},403);
+    const body=managedBody,name=String(body.name||'').trim().slice(0,32),icon=[...String(body.icon||'').trim()].slice(0,2).join('');
+    if(name.length<2)return j({error:'O nome precisa ter pelo menos 2 caracteres.'},400);
+    if(!icon)return j({error:'Escolha um ícone.'},400);
+    this.c.storage.sql.exec('UPDATE servers SET name=?,icon=? WHERE id=?',name,icon,serverId);
+    return j({server:{...server,name,icon}});
+  }
+  const voiceCollection=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice-channels$/);
+  if(voiceCollection){
+    if(!role)return j({error:'Sem acesso'},403);
+    seedVoiceChannels(serverId);
+    if(req.method==='GET')return j({channels:[...this.c.storage.sql.exec('SELECT id,name,created FROM voice_channels WHERE server_id=? ORDER BY created,name',serverId)]});
+    if(req.method==='POST'){
+      if(!canManage)return j({error:'Sem permissão.'},403);
+      const body=managedBody,name=String(body.name||'').trim().replace(/\s+/g,' ').slice(0,32);
+      if(name.length<2)return j({error:'Nome de canal inválido.'},400);
+      if(one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? AND lower(name)=lower(?)',serverId,name)))return j({error:'Já existe um canal de voz com esse nome.'},409);
+      const channel={id:crypto.randomUUID(),name,created:Date.now()};this.c.storage.sql.exec('INSERT INTO voice_channels VALUES(?,?,?,?)',channel.id,serverId,channel.name,channel.created);return j({channel},201);
+    }
+  }
+  const voiceItem=u.pathname.match(/^\/api\/servers\/([\w-]+)\/voice-channels\/([\w-]+)$/);
+  if(voiceItem){
+    if(!canManage)return j({error:'Sem permissão.'},403);
+    const channel=one(this.c.storage.sql.exec('SELECT * FROM voice_channels WHERE id=? AND server_id=?',voiceItem[2],serverId));
+    if(!channel)return j({error:'Canal de voz não encontrado.'},404);
+    if(req.method==='PATCH'){
+      const body=managedBody,name=String(body.name||'').trim().replace(/\s+/g,' ').slice(0,32);
+      if(name.length<2)return j({error:'Nome de canal inválido.'},400);
+      if(one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? AND lower(name)=lower(?) AND id<>?',serverId,name,channel.id)))return j({error:'Já existe um canal com esse nome.'},409);
+      this.c.storage.sql.exec('UPDATE voice_channels SET name=? WHERE id=?',name,channel.id);
+      for(const peer of this.voiceSockets?.get(serverId)||[])if(peer.channel===channel.id)peer.channel=channel.id;
+      return j({channel:{...channel,name}});
+    }
+    if(req.method==='DELETE'){
+      const count=Number(one(this.c.storage.sql.exec('SELECT count(*) AS total FROM voice_channels WHERE server_id=?',serverId))?.total||0);
+      if(count<=1)return j({error:'O servidor precisa manter pelo menos um canal de voz.'},409);
+      this.c.storage.sql.exec('DELETE FROM voice_channels WHERE id=?',channel.id);
+      for(const peer of [...(this.voiceSockets?.get(serverId)||[])])if(peer.channel===channel.id)peer.socket.close(4001,'Canal removido');
+      return j({ok:true});
+    }
+  }
+  const memberItem=u.pathname.match(/^\/api\/servers\/([\w-]+)\/members\/([\w-]+)$/);
+  if(memberItem){
+    if(!role)return j({error:'Sem acesso'},403);
+    const target=one(this.c.storage.sql.exec('SELECT user_id,role FROM members WHERE server_id=? AND user_id=?',serverId,memberItem[2]));
+    if(!target)return j({error:'Membro não encontrado.'},404);
+    if(target.user_id===server.owner)return j({error:'O dono do servidor não pode ser alterado ou removido.'},409);
+    if(req.method==='PATCH'){
+      if(!isOwner)return j({error:'Somente o dono pode alterar funções.'},403);
+      const body=managedBody,nextRole=String(body.role||'');if(!['Admin','Membro'].includes(nextRole))return j({error:'Função inválida.'},400);
+      this.c.storage.sql.exec('UPDATE members SET role=? WHERE server_id=? AND user_id=?',nextRole,serverId,target.user_id);return j({ok:true,role:nextRole});
+    }
+    if(req.method==='DELETE'){
+      if(!canManage||(!isOwner&&target.role==='Admin'))return j({error:'Sem permissão para remover este membro.'},403);
+      this.c.storage.sql.exec('DELETE FROM members WHERE server_id=? AND user_id=?',serverId,target.user_id);
+      this.c.storage.sql.exec('DELETE FROM member_profiles WHERE server_id=? AND user_id=?',serverId,target.user_id);
+      this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND user_id=?',serverId,target.user_id);
+      for(const peer of [...(this.voiceSockets?.get(serverId)||[])])if(peer.user.id===target.user_id)peer.socket.close(4003,'Removido do servidor');
+      return j({ok:true});
+    }
+  }
+  return managedServerFetch.call(this,req);
+};

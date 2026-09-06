@@ -43,7 +43,7 @@
     const screen = configure(findAction(panel, labels.screen), screenStream ? '■' : '↗', screenStream ? 'Parar transmissão' : 'Compartilhar tela', !!screenStream, !!screenStream);
     const leave = configure(findAction(panel, labels.leave), '☎', 'Sair', false, true);
     const header = document.createElement('header'); header.className = 'call-panel-head';
-    header.innerHTML = `<div><span class="call-status-dot"></span><strong>${screenStream ? 'Transmitindo' : 'Voz conectada'}</strong></div><small>Geral</small>`;
+    header.innerHTML = `<div><span class="call-status-dot"></span><strong>${screenStream ? 'Transmitindo' : 'Voz conectada'}</strong></div><small>${selectedVoiceChannel.name}</small>`;
     const primary = document.createElement('div'); primary.className = 'call-primary-actions'; primary.append(mic, sound, camera);
     const screenRow = document.createElement('div'); screenRow.className = 'call-screen-row'; screenRow.append(screen, leave);
     panel.replaceChildren(header, primary, screenRow, streamSettings()); panel.classList.add('is-connected');
