@@ -24,7 +24,7 @@ async function boot(){setup();const saved=JSON.parse(localStorage.getItem(SESSIO
 
 // Controle local de microfone, preservado no cliente desktop enquanto a voz em grupo é evoluída.
 let microphoneStream=null;
-async function startVoice(){if(microphoneStream)return;try{microphoneStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});$('voice-channel').classList.add('active');$('voice-state').innerHTML='<strong>Microfone conectado</strong>Pronto para entrar em uma conversa de voz.';$('mute').disabled=false}catch(error){$('voice-state').innerHTML=`<strong>Microfone indisponível</strong>${error.message}`}}
+async function startVoice(){if(microphoneStream)return;try{microphoneStream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:readSettings().input?{exact:readSettings().input}:undefined,echoCancellation:true,noiseSuppression:true,autoGainControl:readSettings().autoGain!==false}});$('voice-channel').classList.add('active');$('voice-state').innerHTML='<strong>Microfone conectado</strong>Pronto para entrar em uma conversa de voz.';$('mute').disabled=false}catch(error){$('voice-state').innerHTML=`<strong>Microfone indisponível</strong>${error.message}`}}
 function stopVoice(){microphoneStream?.getTracks().forEach(track=>track.stop());microphoneStream=null;$('voice-channel').classList.remove('active');$('mute').disabled=true;$('voice-state').innerHTML='<strong>Não conectado</strong>Escolha o canal Geral para falar.'}
 $('voice-channel').onclick=startVoice;$('mute').onclick=()=>{const track=microphoneStream?.getAudioTracks()[0];if(!track)return;track.enabled=!track.enabled;$('mute').textContent=track.enabled?'🎙':'🔇'};$('leave').onclick=()=>{stopVoice();openPicker()};
 
