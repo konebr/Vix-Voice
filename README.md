@@ -19,6 +19,25 @@ O comando `npm start` executa um servidor antigo de sinalização e não oferece
 
 O ambiente pode ser suspenso por inatividade e está sujeito à franquia e cobrança do GitHub. Para disponibilidade contínua, mantenha uma hospedagem de produção. As chamadas dependem também do microfone, da rede dos participantes e da configuração TURN.
 
+## Transmissões por participante
+
+Entre no canal de voz e clique em compartilhar tela. As telas disponíveis aparecem abaixo dos participantes, com o nome de quem transmite e um botão **Assistir**. Você escolhe qual tela abrir, pode trocar de participante, fechar ou ampliar a imagem. A voz continua tocando separadamente. Nesta versão, a transmissão compartilha a imagem da tela; o áudio do sistema não é transmitido.
+
+## Preservar os dados
+
+`npm run dev` usa explicitamente `.wrangler/state`, o mesmo diretório padrão das versões anteriores. Contas, servidores, membros, canais e mensagens permanecem nesse diretório após parar e reiniciar o Vox. Não apague `.wrangler` e não altere os nomes dos bindings/classes ou a configuração usada pelo comando. O último servidor selecionado é lembrado separadamente por conta no navegador.
+
+Para criar uma cópia, pare todas as instâncias do Wrangler (inclusive em portas alternativas) com **Ctrl+C** e execute:
+
+```sh
+npm run backup
+npm run dev
+```
+
+O backup inclui os bancos de contas e sessões: guarde-o em local privado. A pasta `backups` fica fora do Git; baixe a cópia para seu computador. Excluir o codespace também exclui o banco e os backups que só estiverem nele. Nunca copie um banco enquanto o servidor estiver gravando nele.
+
+Para restaurar, pare o Vox, renomeie `.wrangler/state` para guardar o estado atual e copie a pasta `state` do backup para `.wrangler/state`. Inicie novamente com `npm run dev`. Isso restaura todos os dados para o momento da cópia.
+
 ## Executar localmente
 
 Com Node.js 22 instalado:

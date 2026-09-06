@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .wrangler/
+backups/
 .env
 .env.*
 !.env.example
