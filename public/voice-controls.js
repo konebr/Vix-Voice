@@ -85,7 +85,7 @@
     let replacement;
     try {
       const prefs = readSettings();
-      replacement = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: prefs.input ? { exact: prefs.input } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: prefs.autoGain !== false } });
+      replacement = await requestMicrophone(prefs);
       const old = original;
       if (microphoneStream !== original) { replacement.getTracks().forEach(track => track.stop()); return; }
       replacement.getAudioTracks()[0].enabled = old.getAudioTracks()[0]?.enabled ?? true;
@@ -113,6 +113,21 @@
   const baseBind = bindVoiceSettings;
   bindVoiceSettings = () => {
     baseBind();
+    const autoGain = $('settings-auto-gain'), makeToggle = (id, text, key) => {
+      const label = document.createElement('label'); label.className = 'settings-switch'; label.textContent = text;
+      const input = document.createElement('input'); input.id = id; input.type = 'checkbox'; input.checked = readSettings()[key] !== false;
+      input.onchange = async () => { saveSettings({ [key]: input.checked }); await switchMicrophone(); };
+      label.append(input); return label;
+    };
+    const echo = makeToggle('settings-echo-cancellation', 'Cancelar eco do ambiente', 'echoCancellation');
+    const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
+    autoGain.closest('label').after(echo, noise);
+    const activeTrack = microphoneStream?.getAudioTracks()[0], active = activeTrack?.getSettings?.();
+    if (activeTrack) {
+      const format = document.createElement('p'); format.className = 'voice-format';
+      format.textContent = `Formato ativo: ${active.sampleRate ? `${Math.round(active.sampleRate / 1000)} kHz` : 'automático'} · ${active.channelCount > 1 ? 'estéreo' : 'mono'}`;
+      noise.after(format);
+    }
     $('settings-input').onchange = async event => { saveSettings({ input: event.target.value }); await switchMicrophone(); };
     $('settings-auto-gain').onchange = async event => { saveSettings({ autoGain: event.target.checked }); await switchMicrophone(); };
     $('settings-output').disabled = !('setSinkId' in HTMLMediaElement.prototype);
