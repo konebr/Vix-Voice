@@ -7,7 +7,7 @@ Aplicativo de comunidades, mensagens e chamadas de voz, com interface web e back
 1. Envie este projeto para um repositório do GitHub, incluindo `.devcontainer`, `public`, `src`, os arquivos de configuração do Wrangler e os arquivos `package.json` e `package-lock.json`.
 2. No repositório, abra **Code → Codespaces → Create codespace on main** (ou selecione a branch que contém o projeto).
 3. Aguarde a instalação automática das dependências.
-4. Para voz, copie `.dev.vars.example` para `.dev.vars` e preencha `METERED_TURN_API_KEY` com a chave do projeto `vixvoice.metered.live`. Não envie essa chave ao GitHub. Reinicie o servidor após alterar o arquivo.
+4. Para voz, copie `.dev.vars.example` para `.dev.vars` e preencha `METERED_TURN_USERNAME` e `METERED_TURN_PASSWORD` usando uma credencial ativa do projeto `vixvoice.metered.live`. A API Key pode ser usada como alternativa. Não envie essas credenciais ao GitHub. Reinicie o servidor após alterar o arquivo.
 5. No terminal, execute `npm run dev`.
 6. Na aba **Ports**, abra a porta **8787** no navegador pelo endereço HTTPS fornecido pelo Codespaces. Autorize o microfone quando solicitado.
 
