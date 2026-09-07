@@ -44,8 +44,6 @@ O monitor `deploy/vix-voice-health.timer` consulta o Worker e o banco de contas 
 
 O Worker local inicia com `--no-bundle` porque o código já está pronto para execução. Isso remove do processo permanente a etapa de empacotamento do esbuild e evita que uma falha desse processo derrube o serviço.
 
-A sinalização das chamadas usa espera longa: cada participante mantém no máximo uma consulta pendente e recebe os eventos assim que eles chegam. Isso reduz significativamente a quantidade de requisições durante uma chamada sem adicionar atraso perceptível à negociação WebRTC.
-
 Para restaurar na Oracle, primeiro copie o arquivo desejado para outro local. Pare `vix-voice`, renomeie o estado atual, extraia o arquivo na raiz `/home/ubuntu/vix-voice`, ajuste a propriedade de `.wrangler` para `ubuntu:ubuntu` e inicie o serviço. Mantenha também uma cópia fora da VM: os backups locais protegem contra erro e corrupção, mas não contra a perda do disco da instância.
 
 ## Gerenciar servidores
