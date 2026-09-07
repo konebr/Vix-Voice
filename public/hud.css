@@ -78,6 +78,85 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   font-size: 10px;
   letter-spacing: .08em;
 }
+.category button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: -6px -3px -6px auto;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #8e97aa;
+  font-size: 17px;
+}
+.category button:hover {
+  border-color: #3a4253;
+  background: #262c38;
+  color: white;
+}
+#text-channels, #voice-channel-list {
+  padding: 3px;
+  border: 1px solid #252b38;
+  border-radius: 11px;
+  background: #10131a55;
+}
+#text-channels { margin-bottom: 17px; }
+.room-channel { position: relative; gap: 9px; }
+.room-kind-icon {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  border-radius: 7px;
+  background: #292f3d;
+  color: #939caf;
+  font-size: 14px;
+  font-weight: 750;
+}
+.room-channel-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-channel:hover .room-kind-icon { background: #343b4c; color: #dfe2e9; }
+.room-channel.active .room-kind-icon,
+.voice-channel-button.selected .room-kind-icon {
+  background: #6c72ff2e;
+  color: #aeb2ff;
+  box-shadow: inset 0 0 0 1px #7d84ff3d;
+}
+.room-settings-button {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 24px;
+  flex: none;
+  border-radius: 6px;
+  color: #778094;
+  font-size: 12px;
+  letter-spacing: 1px;
+  opacity: 0;
+}
+.room-channel:hover .room-settings-button,
+.room-channel:focus-visible .room-settings-button { opacity: 1; }
+.room-settings-button:hover { background: #3a4151; color: white; }
+.voice-channel-block { padding-bottom: 2px; }
+.voice-channel-button.selected { background: linear-gradient(90deg, #36d99117, #202832); }
+.voice-channel-button.selected .room-kind-icon { background: #36d99120; color: #64e5a9; box-shadow: inset 0 0 0 1px #36d9913d; }
+.room-occupancy {
+  min-width: 18px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #2e3543;
+  color: #aeb5c2;
+  text-align: center;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.room-occupancy:empty { display: none; }
 .channel {
   min-height: 38px;
   height: auto;
@@ -241,6 +320,32 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   background: #10131a;
 }
 .join-card button { border-radius: 8px; background: linear-gradient(145deg, #777eff, #565ddd); }
+.room-creator-card { width: min(480px, 100%); text-align: left; }
+.room-modal-kicker { color: #858fff; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.room-creator-card h1 { margin-top: 8px; }
+.room-type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+.room-type-picker label { margin: 0; cursor: pointer; }
+.room-type-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.room-type-picker label>span {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  padding: 13px;
+  border: 1px solid #343b4b;
+  border-radius: 11px;
+  background: #12161d;
+}
+.room-type-picker b { grid-row: 1 / 3; align-self: center; color: #8e96aa; font-size: 22px; }
+.room-type-picker strong { color: #e7e9ee; font-size: 13px; }
+.room-type-picker small { margin-top: 3px; color: #7f8798; font-size: 10px; }
+.room-type-picker input:checked+span { border-color: #767eff; background: #6c72ff17; box-shadow: 0 0 0 3px #6c72ff12; }
+.room-type-picker input:checked+span b { color: #9da3ff; }
+.room-type-picker input:focus-visible+span { outline: 2px solid #8990ff; outline-offset: 2px; }
+.room-name-field { display: flex; align-items: center; margin-top: 7px; border: 1px solid #303748; border-radius: 8px; background: #10131a; }
+.room-name-field:focus-within { border-color: #747cff; box-shadow: 0 0 0 3px #6c72ff1c; }
+.room-name-field>span { width: 42px; color: #7f889b; text-align: center; font-size: 18px; }
+.room-name-field input { margin: 0; border: 0; background: transparent; }
+.room-cancel { margin-top: 9px !important; background: transparent !important; color: #9da4b2 !important; }
+.room-cancel:hover { background: #272c37 !important; color: white !important; }
 
 ::-webkit-scrollbar { width: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }

@@ -95,10 +95,14 @@
     list.replaceChildren();
     for (const channel of voiceChannels) {
       const block = document.createElement('div'); block.className = 'voice-channel-block';
-      const channelButton = button(`◖  ${channel.name}`, `channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`);
+      const users = voiceUsers.filter(user => user.channel === channel.id);
+      const channelButton = button('', `channel room-channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`); channelButton.dataset.roomType = 'voice';
+      const icon = document.createElement('span'); icon.className = 'room-kind-icon'; icon.textContent = '◖';
+      const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name;
+      const occupancy = document.createElement('span'); occupancy.className = 'room-occupancy'; occupancy.textContent = users.length ? String(users.length) : '';
+      channelButton.append(icon, name, occupancy);
       channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); voiceUsers.push({ user_id: state.identity.id, name: state.identity.name, color: state.identity.color, channel: channel.id }); renderVoiceChannels(); await startVoice(); if (!microphoneStream) { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); } closeMobileChannels?.(); };
       block.append(channelButton);
-      const users = voiceUsers.filter(user => user.channel === channel.id);
       if (selectedVoiceChannel.id === channel.id) { activeUsers.replaceChildren(...users.map(simpleVoiceUser)); block.append(activeUsers); }
       else { const target = document.createElement('div'); target.className = 'voice-users passive'; target.append(...users.map(simpleVoiceUser)); block.append(target); }
       list.append(block);
