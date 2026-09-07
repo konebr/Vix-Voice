@@ -38,6 +38,10 @@ O backup inclui os bancos de contas e sessões: guarde-o em local privado. A pas
 
 Para restaurar, pare o Vox, renomeie `.wrangler/state` para guardar o estado atual e copie a pasta `state` do backup para `.wrangler/state`. Inicie novamente com `npm run dev`. Isso restaura todos os dados para o momento da cópia.
 
+Na instância Oracle, `deploy/vix-voice-backup.timer` executa um backup consistente diariamente por volta de 04:30 no horário de Brasília. O serviço é pausado somente durante a compactação e sempre volta a iniciar, inclusive quando o backup falha. Os sete arquivos mais recentes ficam em `/var/backups/vix-voice`, acompanhados por manifesto e checksum SHA-256. Consulte o próximo horário com `systemctl list-timers vix-voice-backup.timer` e os resultados com `journalctl -u vix-voice-backup.service`.
+
+Para restaurar na Oracle, primeiro copie o arquivo desejado para outro local. Pare `vix-voice`, renomeie o estado atual, extraia o arquivo na raiz `/home/ubuntu/vix-voice`, ajuste a propriedade de `.wrangler` para `ubuntu:ubuntu` e inicie o serviço. Mantenha também uma cópia fora da VM: os backups locais protegem contra erro e corrupção, mas não contra a perda do disco da instância.
+
 ## Gerenciar servidores
 
 Clique na seta ao lado do nome do servidor para abrir as configurações. Donos e administradores podem editar o nome e o ícone, criar, renomear e excluir canais de voz. Somente o dono pode promover ou rebaixar administradores. Donos e administradores podem remover membros comuns; administradores não podem remover outros administradores, e o dono não pode ser removido. O servidor sempre mantém pelo menos um canal de voz.

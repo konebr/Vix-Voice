@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup consistente do Vix Voice
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vix-voice-backup
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+TimeoutStartSec=5min
