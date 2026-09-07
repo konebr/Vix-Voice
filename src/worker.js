@@ -3,7 +3,7 @@ const b64=x=>btoa(String.fromCharCode(...x)),unb64=x=>Uint8Array.from(atob(x),c=
 async function hash(p,s){const k=await crypto.subtle.importKey('raw',E.encode(p),'PBKDF2',false,['deriveBits']);return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:s,iterations:100000,hash:'SHA-256'},k,256))}
 async function identity(env,token){const r=await env.USERS.get(env.USERS.idFromName('global')).fetch(`https://auth/session?token=${encodeURIComponent(token||'')}`);return r.ok?(await r.json()).user:null}
 
-export default {async fetch(req,env){const u=new URL(req.url),token=req.headers.get('Authorization')?.replace('Bearer ','')||u.searchParams.get('token')||'';if(u.pathname.startsWith('/api/auth/'))return env.USERS.get(env.USERS.idFromName('global')).fetch(req);if(u.pathname==='/api/turn'){const user=await identity(env,token);if(!user)return j({error:'Não autenticado'},401);if(env.METERED_TURN_USERNAME&&env.METERED_TURN_PASSWORD){const auth={username:env.METERED_TURN_USERNAME,credential:env.METERED_TURN_PASSWORD};return j([{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',...auth},{urls:'turn:global.relay.metered.ca:80?transport=tcp',...auth},{urls:'turn:global.relay.metered.ca:443',...auth},{urls:'turns:global.relay.metered.ca:443?transport=tcp',...auth}])}if(!env.METERED_TURN_API_KEY)return j({error:'TURN ainda não configurado.'},503);const upstream=await fetch(`https://vixvoice.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(env.METERED_TURN_API_KEY)}`,{signal:AbortSignal.timeout(8000)});if(!upstream.ok)return j({error:`A Metered recusou a chave TURN (${upstream.status}).`},502);const data=await upstream.json();if(!Array.isArray(data)||!data.some(server=>String(server.urls||'').startsWith('turn')))return j({error:'A Metered não retornou servidores TURN.'},502);return j(data)}if(u.pathname.startsWith('/api/servers')){u.searchParams.set('token',token);return env.SERVERS.get(env.SERVERS.idFromName('global')).fetch(new Request(`https://servers${u.pathname}${u.search}`,req))}const m=u.pathname.match(/^\/signal\/([\w-]+)$/);if(m)return env.SERVERS.get(env.SERVERS.idFromName('global')).fetch(new Request(`https://servers/ws/${m[1]}?token=${encodeURIComponent(token)}`,req));const asset=await env.ASSETS.fetch(req);if(req.method==='GET'&&(u.pathname==='/'||/\.(?:html|js|css)$/.test(u.pathname))){const headers=new Headers(asset.headers);headers.set('cache-control','no-store, max-age=0');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}return asset}};
+export default {async fetch(req,env){const u=new URL(req.url),token=req.headers.get('Authorization')?.replace('Bearer ','')||u.searchParams.get('token')||'';if(u.pathname.startsWith('/api/auth/')||u.pathname.startsWith('/api/private/'))return env.USERS.get(env.USERS.idFromName('global')).fetch(req);if(u.pathname==='/api/turn'){const user=await identity(env,token);if(!user)return j({error:'Não autenticado'},401);if(env.METERED_TURN_USERNAME&&env.METERED_TURN_PASSWORD){const auth={username:env.METERED_TURN_USERNAME,credential:env.METERED_TURN_PASSWORD};return j([{urls:'stun:stun.relay.metered.ca:80'},{urls:'turn:global.relay.metered.ca:80',...auth},{urls:'turn:global.relay.metered.ca:80?transport=tcp',...auth},{urls:'turn:global.relay.metered.ca:443',...auth},{urls:'turns:global.relay.metered.ca:443?transport=tcp',...auth}])}if(!env.METERED_TURN_API_KEY)return j({error:'TURN ainda não configurado.'},503);const upstream=await fetch(`https://vixvoice.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(env.METERED_TURN_API_KEY)}`,{signal:AbortSignal.timeout(8000)});if(!upstream.ok)return j({error:`A Metered recusou a chave TURN (${upstream.status}).`},502);const data=await upstream.json();if(!Array.isArray(data)||!data.some(server=>String(server.urls||'').startsWith('turn')))return j({error:'A Metered não retornou servidores TURN.'},502);return j(data)}if(u.pathname.startsWith('/api/servers')){u.searchParams.set('token',token);return env.SERVERS.get(env.SERVERS.idFromName('global')).fetch(new Request(`https://servers${u.pathname}${u.search}`,req))}const m=u.pathname.match(/^\/signal\/([\w-]+)$/);if(m)return env.SERVERS.get(env.SERVERS.idFromName('global')).fetch(new Request(`https://servers/ws/${m[1]}?token=${encodeURIComponent(token)}`,req));const asset=await env.ASSETS.fetch(req);if(req.method==='GET'&&(u.pathname==='/'||/\.(?:html|js|css)$/.test(u.pathname))){const headers=new Headers(asset.headers);headers.set('cache-control','no-store, max-age=0');return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers})}return asset}};
 
 // Mantida para compatibilidade com implantações antigas que ainda possuem esse Durable Object.
 export class Room{constructor(state){this.state=state}fetch(){return j({error:'Esta sala antiga não é mais utilizada.'},410)}}
@@ -298,4 +298,79 @@ Users.prototype.fetch=async function(req){
     }
   }
   return usersHealthFetch.call(this,req);
+};
+
+// Área privada global: amizades, mensagens diretas, presença e sinalização WebRTC.
+const authenticatedUsersFetch=Users.prototype.fetch;
+Users.prototype.ensurePrivateSystem=function(){
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS friend_requests(id TEXT PRIMARY KEY,sender_id TEXT,receiver_id TEXT,status TEXT,created INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS friendships(user_a TEXT,user_b TEXT,created INTEGER,PRIMARY KEY(user_a,user_b))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS direct_messages(id TEXT PRIMARY KEY,sender_id TEXT,receiver_id TEXT,text TEXT,created INTEGER,read_at INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS private_presence(user_id TEXT PRIMARY KEY,updated INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS private_call_events(id TEXT PRIMARY KEY,target_id TEXT,sender_id TEXT,payload TEXT,created INTEGER)');
+};
+Users.prototype.privateUser=function(req){
+  const u=new URL(req.url),token=req.headers.get('Authorization')?.replace('Bearer ','')||u.searchParams.get('token')||'';
+  return one(this.c.storage.sql.exec('SELECT users.id,users.email,users.display_name AS name,users.avatar_color AS color FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires_at>?',token,Date.now()));
+};
+Users.prototype.privateFriends=function(a,b){
+  const [x,y]=[a,b].sort();
+  return !!one(this.c.storage.sql.exec('SELECT 1 AS ok FROM friendships WHERE user_a=? AND user_b=?',x,y));
+};
+Users.prototype.fetch=async function(req){
+  const u=new URL(req.url);
+  if(!u.pathname.startsWith('/api/private/'))return authenticatedUsersFetch.call(this,req);
+  this.ensurePrivateSystem();
+  const user=this.privateUser(req);if(!user)return j({error:'Não autenticado'},401);
+  const now=Date.now();
+  this.c.storage.sql.exec('INSERT OR REPLACE INTO private_presence VALUES(?,?)',user.id,now);
+  this.c.storage.sql.exec('DELETE FROM private_call_events WHERE created<?',now-120000);
+  if(u.pathname==='/api/private/home'&&req.method==='GET'){
+    const links=[...this.c.storage.sql.exec('SELECT user_a,user_b FROM friendships WHERE user_a=? OR user_b=?',user.id,user.id)],friends=[];
+    for(const link of links){
+      const id=link.user_a===user.id?link.user_b:link.user_a,person=one(this.c.storage.sql.exec('SELECT id,display_name AS name,avatar_color AS color FROM users WHERE id=?',id));if(!person)continue;
+      const presence=one(this.c.storage.sql.exec('SELECT updated FROM private_presence WHERE user_id=?',id)),unread=one(this.c.storage.sql.exec('SELECT COUNT(*) AS count FROM direct_messages WHERE sender_id=? AND receiver_id=? AND read_at IS NULL',id,user.id));
+      const last=one(this.c.storage.sql.exec('SELECT text,created FROM direct_messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?) ORDER BY created DESC LIMIT 1',user.id,id,id,user.id));
+      friends.push({...person,online:!!presence&&now-presence.updated<65000,unread:Number(unread?.count||0),last_message:last?.text||'',last_message_at:last?.created||0});
+    }
+    friends.sort((a,b)=>Number(b.online)-Number(a.online)||b.last_message_at-a.last_message_at||a.name.localeCompare(b.name));
+    const incoming=[...this.c.storage.sql.exec('SELECT friend_requests.id,friend_requests.created,users.id AS user_id,users.display_name AS name,users.avatar_color AS color FROM friend_requests JOIN users ON users.id=friend_requests.sender_id WHERE receiver_id=? AND status=? ORDER BY friend_requests.created DESC',user.id,'pending')];
+    const outgoing=[...this.c.storage.sql.exec('SELECT friend_requests.id,friend_requests.created,users.id AS user_id,users.display_name AS name,users.avatar_color AS color FROM friend_requests JOIN users ON users.id=friend_requests.receiver_id WHERE sender_id=? AND status=? ORDER BY friend_requests.created DESC',user.id,'pending')];
+    return j({friends,incoming,outgoing});
+  }
+  if(u.pathname==='/api/private/friends'&&req.method==='POST'){
+    const body=await req.json().catch(()=>({})),email=String(body.email||'').trim().toLowerCase(),target=one(this.c.storage.sql.exec('SELECT id,display_name AS name FROM users WHERE email=?',email));
+    if(!target)return j({error:'Nenhum usuário foi encontrado com esse e-mail.'},404);
+    if(target.id===user.id)return j({error:'Você não pode adicionar a si mesmo.'},400);
+    if(this.privateFriends(user.id,target.id))return j({error:'Essa pessoa já está na sua lista de amigos.'},409);
+    const reverse=one(this.c.storage.sql.exec('SELECT id FROM friend_requests WHERE sender_id=? AND receiver_id=? AND status=?',target.id,user.id,'pending'));
+    if(reverse){const [a,b]=[user.id,target.id].sort();this.c.storage.sql.exec('INSERT OR IGNORE INTO friendships VALUES(?,?,?)',a,b,now);this.c.storage.sql.exec('DELETE FROM friend_requests WHERE id=?',reverse.id);return j({ok:true,accepted:true});}
+    if(one(this.c.storage.sql.exec('SELECT id FROM friend_requests WHERE sender_id=? AND receiver_id=? AND status=?',user.id,target.id,'pending')))return j({error:'A solicitação já foi enviada.'},409);
+    const id=crypto.randomUUID();this.c.storage.sql.exec('INSERT INTO friend_requests VALUES(?,?,?,?,?)',id,user.id,target.id,'pending',now);return j({ok:true,request:{id,name:target.name}},201);
+  }
+  const requestMatch=u.pathname.match(/^\/api\/private\/requests\/([\w-]+)(?:\/(accept))?$/);
+  if(requestMatch&&req.method==='POST'&&requestMatch[2]==='accept'){
+    const request=one(this.c.storage.sql.exec('SELECT * FROM friend_requests WHERE id=? AND receiver_id=? AND status=?',requestMatch[1],user.id,'pending'));if(!request)return j({error:'Solicitação não encontrada.'},404);
+    const [a,b]=[request.sender_id,user.id].sort();this.c.storage.sql.exec('INSERT OR IGNORE INTO friendships VALUES(?,?,?)',a,b,now);this.c.storage.sql.exec('DELETE FROM friend_requests WHERE id=?',request.id);return j({ok:true});
+  }
+  if(requestMatch&&req.method==='DELETE'){
+    const request=one(this.c.storage.sql.exec('SELECT * FROM friend_requests WHERE id=? AND (sender_id=? OR receiver_id=?)',requestMatch[1],user.id,user.id));if(!request)return j({error:'Solicitação não encontrada.'},404);
+    this.c.storage.sql.exec('DELETE FROM friend_requests WHERE id=?',request.id);return j({ok:true});
+  }
+  const friendMatch=u.pathname.match(/^\/api\/private\/friends\/([\w-]+)$/);
+  if(friendMatch&&req.method==='DELETE'){
+    const target=friendMatch[1],[a,b]=[user.id,target].sort();this.c.storage.sql.exec('DELETE FROM friendships WHERE user_a=? AND user_b=?',a,b);this.c.storage.sql.exec('DELETE FROM direct_messages WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)',user.id,target,target,user.id);return j({ok:true});
+  }
+  const messagesMatch=u.pathname.match(/^\/api\/private\/messages\/([\w-]+)$/);
+  if(messagesMatch){
+    const target=messagesMatch[1];if(!this.privateFriends(user.id,target))return j({error:'Essa conversa exige uma amizade aceita.'},403);
+    if(req.method==='GET'){const after=Math.max(0,Number(u.searchParams.get('after'))||0);this.c.storage.sql.exec('UPDATE direct_messages SET read_at=? WHERE sender_id=? AND receiver_id=? AND read_at IS NULL',now,target,user.id);return j({messages:[...this.c.storage.sql.exec('SELECT id,sender_id,receiver_id,text,created,read_at FROM direct_messages WHERE ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)) AND created>? ORDER BY created ASC LIMIT 250',user.id,target,target,user.id,after)]});}
+    if(req.method==='POST'){const body=await req.json().catch(()=>({})),text=String(body.text||'').trim().slice(0,2000);if(!text)return j({error:'Digite uma mensagem.'},400);const message={id:crypto.randomUUID(),sender_id:user.id,receiver_id:target,text,created:now,read_at:null};this.c.storage.sql.exec('INSERT INTO direct_messages VALUES(?,?,?,?,?,NULL)',message.id,user.id,target,text,now);return j({message},201);}
+  }
+  if(u.pathname==='/api/private/signal'){
+    if(req.method==='GET'){const events=[...this.c.storage.sql.exec('SELECT id,sender_id,payload,created FROM private_call_events WHERE target_id=? ORDER BY created ASC LIMIT 100',user.id)];if(events.length)for(const event of events)this.c.storage.sql.exec('DELETE FROM private_call_events WHERE id=?',event.id);return j({events:events.map(event=>({id:event.id,from:event.sender_id,created:event.created,...JSON.parse(event.payload)}))});}
+    if(req.method==='POST'){const body=await req.json().catch(()=>({})),target=String(body.to||''),allowed=new Set(['call-offer','call-answer','call-ice','call-hangup','call-busy']);if(!allowed.has(body.type))return j({error:'Sinal de chamada inválido.'},400);if(!this.privateFriends(user.id,target))return j({error:'Chamadas privadas exigem uma amizade aceita.'},403);const payload=JSON.stringify({...body,to:undefined});if(payload.length>30000)return j({error:'Sinal de chamada muito grande.'},413);this.c.storage.sql.exec('INSERT INTO private_call_events VALUES(?,?,?,?,?)',crypto.randomUUID(),target,user.id,payload,now);return j({ok:true});}
+    if(req.method==='DELETE'){this.c.storage.sql.exec('DELETE FROM private_call_events WHERE target_id=?',user.id);return j({ok:true});}
+  }
+  return j({error:'Rota privada inexistente'},404);
 };
