@@ -1,0 +1,10 @@
+[Unit]
+Description=Verificação e recuperação do Vix Voice
+After=network-online.target vix-voice.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vix-voice-health
+Nice=10
+UMask=0077
+TimeoutStartSec=90s

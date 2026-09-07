@@ -202,3 +202,19 @@ Servers.prototype.fetch=async function(req){
   for(const peer of room?.values()||[])if(peer.joined&&now-peer.updated<=15000)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,channel:peer.channel||'Geral'});
   return j({users:[...users.values()].sort((a,b)=>a.name.localeCompare(b.name))});
 };
+
+// Saúde interna: confirma que o Worker e o banco de contas respondem sem expor dados.
+const usersHealthFetch=Users.prototype.fetch;
+Users.prototype.fetch=async function(req){
+  const u=new URL(req.url);
+  if(u.pathname==='/api/auth/health'&&req.method==='GET'){
+    try{
+      one(this.c.storage.sql.exec('SELECT 1 AS healthy'));
+      return new Response(JSON.stringify({status:'ok',time:new Date().toISOString()}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+    }catch(error){
+      console.error('Falha na verificação de saúde',error);
+      return new Response(JSON.stringify({status:'unhealthy'}),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}});
+    }
+  }
+  return usersHealthFetch.call(this,req);
+};

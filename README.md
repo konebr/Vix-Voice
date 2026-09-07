@@ -40,6 +40,10 @@ Para restaurar, pare o Vox, renomeie `.wrangler/state` para guardar o estado atu
 
 Na instância Oracle, `deploy/vix-voice-backup.timer` executa um backup consistente diariamente por volta de 04:30 no horário de Brasília. O serviço é pausado somente durante a compactação e sempre volta a iniciar, inclusive quando o backup falha. Os sete arquivos mais recentes ficam em `/var/backups/vix-voice`, acompanhados por manifesto e checksum SHA-256. Consulte o próximo horário com `systemctl list-timers vix-voice-backup.timer` e os resultados com `journalctl -u vix-voice-backup.service`.
 
+O monitor `deploy/vix-voice-health.timer` consulta o Worker e o banco de contas a cada minuto. Se a aplicação permanecer ativa, mas deixar de responder, o monitor reinicia o serviço e aguarda a recuperação. A verificação é ignorada durante o backup para não interromper a cópia consistente. Consulte o histórico com `journalctl -u vix-voice-health.service`.
+
+O Worker local inicia com `--no-bundle` porque o código já está pronto para execução. Isso remove do processo permanente a etapa de empacotamento do esbuild e evita que uma falha desse processo derrube o serviço.
+
 Para restaurar na Oracle, primeiro copie o arquivo desejado para outro local. Pare `vix-voice`, renomeie o estado atual, extraia o arquivo na raiz `/home/ubuntu/vix-voice`, ajuste a propriedade de `.wrangler` para `ubuntu:ubuntu` e inicie o serviço. Mantenha também uma cópia fora da VM: os backups locais protegem contra erro e corrupção, mas não contra a perda do disco da instância.
 
 ## Gerenciar servidores

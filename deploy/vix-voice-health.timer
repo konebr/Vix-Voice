@@ -1,0 +1,11 @@
+[Unit]
+Description=Monitor de disponibilidade do Vix Voice
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Unit=vix-voice-health.service
+
+[Install]
+WantedBy=timers.target
