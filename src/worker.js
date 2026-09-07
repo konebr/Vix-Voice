@@ -159,13 +159,13 @@ Servers.prototype.fetch=async function(req){
   if(!this.member(serverId,user))return j({error:'Sem acesso'},403);
   if(!session)return j({error:'Sessão de voz inválida.'},400);
   const rooms=this.voicePollRooms||(this.voicePollRooms=new Map()),room=rooms.get(serverId)||(rooms.set(serverId,new Map()),rooms.get(serverId));
-  const now=Date.now(),emit=(peer,message)=>{peer.events.push(message);if(peer.events.length>100)peer.events.splice(0,peer.events.length-100)},depart=peer=>{room.delete(peer.session);if(peer.joined)for(const other of room.values())if(other.joined&&other.channel===peer.channel)emit(other,{type:'voice-leave',from:{id:peer.user.id,name:peer.user.name,color:peer.user.color}})};
+  const now=Date.now(),wake=peer=>{for(const resume of [...(peer.waiters||[])])resume()},emit=(peer,message)=>{peer.events.push(message);if(peer.events.length>100)peer.events.splice(0,peer.events.length-100);wake(peer)},depart=peer=>{room.delete(peer.session);wake(peer);if(peer.joined)for(const other of room.values())if(other.joined&&other.channel===peer.channel)emit(other,{type:'voice-leave',from:{id:peer.user.id,name:peer.user.name,color:peer.user.color}})};
   for(const peer of [...room.values()])if(now-peer.updated>15000)depart(peer);
   let peer=room.get(session);
   if(peer&&peer.user.id!==user.id)return j({error:'Esta sessão de voz pertence a outro usuário.'},403);
   if(req.method==='POST'){
     const message=await req.json().catch(()=>({}));
-    if(!peer){peer={session,user,channel:null,joined:false,updated:now,events:[]};room.set(session,peer)}
+    if(!peer){peer={session,user,channel:null,joined:false,updated:now,events:[],waiters:new Set()};room.set(session,peer)}
     peer.updated=now;
     const from={id:user.id,name:user.name,color:user.color},outgoing={...message,from};
     if(message.type==='voice-join'){
@@ -182,7 +182,9 @@ Servers.prototype.fetch=async function(req){
   }
   if(req.method==='GET'){
     if(!peer||!peer.joined)return j({error:'A sessão de voz não está conectada.'},409);
-    peer.updated=now;const events=peer.events.splice(0);return j({events});
+    peer.updated=now;
+    if(!peer.events.length)await new Promise(resolve=>{let timer;const resume=()=>{clearTimeout(timer);peer.waiters.delete(resume);resolve()};timer=setTimeout(resume,15000);peer.waiters.add(resume)});
+    peer.updated=Date.now();const events=peer.events.splice(0);return j({events});
   }
   if(req.method==='DELETE'){if(peer)depart(peer);if(!room.size)rooms.delete(serverId);return j({ok:true})}
   return j({error:'Método inválido.'},405);

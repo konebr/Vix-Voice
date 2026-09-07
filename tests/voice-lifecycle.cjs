@@ -15,8 +15,9 @@ function harness({ reject = false } = {}) {
     voiceSignalTimer: null, microphoneStream: { active: true },
     crypto: { randomUUID: () => 'session-id' }, encodeURIComponent, JSON,
     async api(path, options) { requests.push({ path, options }); if (reject) throw Error('servidor indisponível'); return options ? { ok: true } : { users: [] }; },
-    renderVoicePanel() {}, async refreshVoiceUsers() {}, setInterval: () => 7,
-    pollVoiceSignal() {}, stopVoice() { context.stopped = true; }, stopped: false,
+    renderVoicePanel() {}, async refreshVoiceUsers() {},
+    pollVoiceSignal() { context.pollCalls++; }, pollCalls: 0,
+    stopVoice() { context.stopped = true; }, stopped: false,
     alert(message) { alerts.push(message); }
   };
   vm.createContext(context); vm.runInContext(`${pathLine}\n${connectLine}`, context);
@@ -30,6 +31,7 @@ test('voice becomes connected only after the HTTP signaling join succeeds', asyn
   await pending;
   assert.equal(context.voiceRoomConnected, true);
   assert.equal(context.voiceSignalSession, 'session-id');
+  assert.equal(context.pollCalls, 1);
   assert.equal(requests[0].path, '/api/servers/server/voice-signal?session=session-id');
   assert.deepEqual(JSON.parse(requests[0].options.body), { type: 'voice-join', channel: 'games' });
 });
