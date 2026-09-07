@@ -17,7 +17,7 @@ test('voice signaling stays inside the selected channel', () => {
     close() { this.readyState = 3; this.handlers.close?.(); }
   }
   class Pair { constructor() { this[0] = {}; this[1] = new Socket(); sockets.push(this[1]); } }
-  class Servers { member() { return true; } }
+  class Servers { member() { return true; } can() { return true; } }
   class Response {}
   vm.runInNewContext(source.slice(start, end), { Servers, WebSocketPair: Pair, Response, Map, Set, JSON });
   const server = new Servers();

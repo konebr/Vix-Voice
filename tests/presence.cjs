@@ -17,6 +17,7 @@ test('voice roster follows joined sockets, independent of expired database rows'
   const server = new Servers();
   server.user = async () => ({ id: 'observer' });
   server.member = () => true;
+  server.can = () => true;
   server.c = { storage: { sql: { exec: () => [] } } };
   server.voiceSockets = new Map([['room', new Set([active, duplicate, left, closed])]]);
   const get = async () => (await server.fetch(new Request('https://test/api/servers/room/voice'))).json();
@@ -24,5 +25,6 @@ test('voice roster follows joined sockets, independent of expired database rows'
   active.socket.readyState = 3;
   assert.deepEqual((await get()).users, []);
   server.member = () => false;
+  server.can = () => false;
   assert.equal((await server.fetch(new Request('https://test/api/servers/room/voice'))).status, 403);
 });
