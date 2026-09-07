@@ -88,14 +88,18 @@
   function renderVoiceChannels() {
     let list = $('voice-channel-list');
     if (!list) { list = document.createElement('div'); list.id = 'voice-channel-list'; $('voice-channel').before(list); $('voice-channel').hidden = true; }
+    // Preserve the shared roster before clearing the channel list. Once it is
+    // detached, getElementById cannot find it until it is appended again.
+    let activeUsers = $('voice-users');
+    if (!activeUsers) { activeUsers = document.createElement('div'); activeUsers.id = 'voice-users'; activeUsers.className = 'voice-users'; }
     list.replaceChildren();
     for (const channel of voiceChannels) {
       const block = document.createElement('div'); block.className = 'voice-channel-block';
       const channelButton = button(`◖  ${channel.name}`, `channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`);
-      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); voiceUsers.push({ user_id: state.identity.id, name: state.identity.name, color: state.identity.color, channel: channel.id }); renderVoiceChannels(); await startVoice(); if (!microphoneStream) { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); } closeMobileChannels?.(); };
+      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); voiceUsers.push({ user_id: state.identity.id, name: state.identity.name, color: state.identity.color, channel: channel.id }); renderVoiceChannels(); await startVoice(); if (!microphoneStream) { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); } closeMobileChannels?.(); };
       block.append(channelButton);
       const users = voiceUsers.filter(user => user.channel === channel.id);
-      if (selectedVoiceChannel.id === channel.id) { const target = $('voice-users'); target.replaceChildren(...users.map(simpleVoiceUser)); block.append(target); }
+      if (selectedVoiceChannel.id === channel.id) { activeUsers.replaceChildren(...users.map(simpleVoiceUser)); block.append(activeUsers); }
       else { const target = document.createElement('div'); target.className = 'voice-users passive'; target.append(...users.map(simpleVoiceUser)); block.append(target); }
       list.append(block);
     }
