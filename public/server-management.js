@@ -13,11 +13,11 @@
     const avatar = document.createElement('span'); avatar.className = 'management-avatar'; avatar.textContent = initials(member.name); avatar.style.background = member.color;
     const identity = document.createElement('div'); identity.className = 'management-row-copy';
     const name = document.createElement('strong'); name.textContent = member.user_id === state.identity.id ? `${member.name} (você)` : member.name;
-    const role = document.createElement('small'); role.textContent = member.role; identity.append(name, role); row.append(avatar, identity);
+    const role = document.createElement('small'); role.textContent = member.role === 'Admin' ? 'Administrador' : member.role; identity.append(name, role); row.append(avatar, identity);
     if (management.isOwner && member.role !== 'Dono') {
       const select = document.createElement('select');
-      for (const value of ['Membro', 'Admin']) { const option = document.createElement('option'); option.value = value; option.textContent = value; option.selected = member.role === value; select.append(option); }
-      select.onchange = async () => { try { await api(`/api/servers/${state.server.id}/members/${member.user_id}`, { method: 'PATCH', body: JSON.stringify({ role: select.value }) }); await reloadManagement('members'); } catch (error) { select.value = member.role; alert(error.message); } };
+      for (const value of ['Membro', 'Admin']) { const option = document.createElement('option'); option.value = value; option.textContent = value === 'Admin' ? 'Administrador' : value; option.selected = member.role === value; select.append(option); }
+      select.onchange = async () => { try { await api(`/api/servers/${state.server.id}/members/${member.user_id}`, { method: 'PATCH', body: JSON.stringify({ role: select.value }) }); await reloadManagement('members'); await renderServerMembers(); } catch (error) { select.value = member.role; alert(error.message); } };
       row.append(select);
     }
     const canRemove = member.role !== 'Dono' && member.user_id !== state.identity.id && management.canManage && (management.isOwner || member.role !== 'Admin');

@@ -54,9 +54,9 @@ Servers.prototype.websocket=function(req,serverId,user){
   return new Response(null,{status:101,webSocket:client});
 };
 
-// Perfis mínimos por servidor para a lista de membros.
+// Perfis e presença recente para a lista de membros.
 const memberFetch=Servers.prototype.fetch;
-Servers.prototype.fetch=async function(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,PRIMARY KEY(server_id,user_id))');const match=u.pathname.match(/^\/api\/servers\/([\w-]+)\/members$/);if(match){const serverId=match[1];if(!this.member(serverId,user))return j({error:'Sem acesso'},403);if(req.method==='POST'){const body=await req.json();this.c.storage.sql.exec('INSERT OR REPLACE INTO member_profiles VALUES(?,?,?,?)',serverId,user.id,String(body.name||user.name).slice(0,24),String(body.color||user.color||'#5865f2'));return j({ok:true})}if(req.method==='GET')return j({members:[...this.c.storage.sql.exec('SELECT members.user_id,members.role,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(member_profiles.color,"#5865f2") AS color FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id WHERE members.server_id=? ORDER BY members.role DESC,name',serverId)]})}return memberFetch.call(this,req)};
+Servers.prototype.fetch=async function(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,PRIMARY KEY(server_id,user_id))');this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_presence(server_id TEXT,user_id TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');const match=u.pathname.match(/^\/api\/servers\/([\w-]+)\/members$/);if(match){const serverId=match[1];if(!this.member(serverId,user))return j({error:'Sem acesso'},403);if(req.method==='POST'){const body=await req.json(),now=Date.now();this.c.storage.sql.exec('INSERT OR REPLACE INTO member_profiles(server_id,user_id,name,color) VALUES(?,?,?,?)',serverId,user.id,String(body.name||user.name).slice(0,24),String(body.color||user.color||'#5865f2'));this.c.storage.sql.exec('INSERT OR REPLACE INTO member_presence(server_id,user_id,updated) VALUES(?,?,?)',serverId,user.id,now);return j({ok:true,updated:now})}if(req.method==='GET'){const activeSince=Date.now()-65000;return j({members:[...this.c.storage.sql.exec('SELECT members.user_id,members.role,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(member_profiles.color,"#5865f2") AS color,COALESCE(member_presence.updated,0) AS last_seen,CASE WHEN COALESCE(member_presence.updated,0)>=? THEN 1 ELSE 0 END AS online FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id LEFT JOIN member_presence ON members.server_id=member_presence.server_id AND members.user_id=member_presence.user_id WHERE members.server_id=? ORDER BY CASE members.role WHEN "Dono" THEN 0 WHEN "Admin" THEN 1 ELSE 2 END,name',activeSince,serverId)]})}}return memberFetch.call(this,req)};
 
 // Administração persistente do servidor, funções e canais de voz.
 const managedServerFetch=Servers.prototype.fetch;
@@ -68,6 +68,7 @@ Servers.prototype.fetch=async function(req){
   if(!user)return j({error:'Não autenticado'},401);
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_channels(id TEXT PRIMARY KEY,server_id TEXT,name TEXT,created INTEGER,UNIQUE(server_id,name))');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,PRIMARY KEY(server_id,user_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_presence(server_id TEXT,user_id TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_presence(server_id TEXT,channel TEXT,user_id TEXT,name TEXT,color TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');
   const serverId=u.pathname.match(/^\/api\/servers\/([\w-]+)(?:\/|$)/)?.[1];
   const seedVoiceChannels=id=>{if(!one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? LIMIT 1',id)))this.c.storage.sql.exec('INSERT INTO voice_channels VALUES(?,?,?,?)',crypto.randomUUID(),id,'Geral',Date.now())};
@@ -140,6 +141,7 @@ Servers.prototype.fetch=async function(req){
       if(!canManage||(!isOwner&&target.role==='Admin'))return j({error:'Sem permissão para remover este membro.'},403);
       this.c.storage.sql.exec('DELETE FROM members WHERE server_id=? AND user_id=?',serverId,target.user_id);
       this.c.storage.sql.exec('DELETE FROM member_profiles WHERE server_id=? AND user_id=?',serverId,target.user_id);
+      this.c.storage.sql.exec('DELETE FROM member_presence WHERE server_id=? AND user_id=?',serverId,target.user_id);
       this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND user_id=?',serverId,target.user_id);
       for(const peer of [...(this.voiceSockets?.get(serverId)||[])])if(peer.user.id===target.user_id)peer.socket.close(4003,'Removido do servidor');
       return j({ok:true});

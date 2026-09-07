@@ -6,7 +6,7 @@ const vm = require('node:vm');
 test('voice signaling stays inside the selected channel', () => {
   const source = fs.readFileSync('src/worker.js', 'utf8');
   const start = source.indexOf('Servers.prototype.websocket=function');
-  const end = source.indexOf('// Perfis mínimos', start);
+  const end = source.indexOf('// Perfis e presença', start);
   const sockets = [];
   class Socket {
     constructor() { this.handlers = {}; this.messages = []; this.readyState = 1; }

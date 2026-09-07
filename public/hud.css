@@ -278,8 +278,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   padding: 27px 12px;
   border-left: 1px solid #282d3a;
   background: linear-gradient(180deg, #181b24, #14171e);
+  overflow-y: auto;
 }
-.members h2 { margin-bottom: 14px; color: #778094; font-size: 10px; letter-spacing: .08em; }
+.member-section + .member-section { margin-top: 22px; }
+.member-section-title { margin: 0 9px 10px; color: #778094; font-size: 10px; letter-spacing: .09em; }
 .member {
   min-height: 44px;
   margin-bottom: 4px;
@@ -288,6 +290,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 .member:hover { background: #222733; }
 .member .avatar { width: 34px; height: 34px; box-shadow: 0 4px 12px #0004; }
+.member-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.member-name { overflow: hidden; color: #c8ccd5; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.member-role { width: max-content; max-width: 100%; overflow: hidden; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.member-role.role-owner { color: #f4c45c; }
+.member-role.role-admin { color: #a9a7ff; }
+.member-role.role-member { color: #747d90; }
+.member.is-offline { opacity: .48; filter: saturate(.55); }
+.member.is-offline:hover { opacity: .75; }
 .presence { border-color: #171a22; box-shadow: 0 0 0 2px #171a22; }
 .presence.online { box-shadow: 0 0 0 2px #171a22, 0 0 10px #36d99188; }
 
