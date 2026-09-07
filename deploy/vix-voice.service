@@ -1,0 +1,16 @@
+[Unit]
+Description=Vix Voice Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/vix-voice
+Environment=WRANGLER_SEND_METRICS=false
+ExecStart=/usr/bin/wrangler dev --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8787 --persist-to /home/ubuntu/vix-voice/.wrangler/state
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
