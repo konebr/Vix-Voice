@@ -13,5 +13,8 @@
       "onAutoForward": "notify",
       "protocol": "http"
     }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
   }
 }
