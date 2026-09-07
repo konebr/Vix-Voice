@@ -17,3 +17,14 @@ test('master volume combines with personal volume; deafen and personal mute rema
   context.applyOutput(peer); assert.equal(peer.audio.muted, true);
   settings = {}; context.applyOutput(peer); assert.equal(peer.audio.volume, 1); assert.equal(peer.audio.muted, false);
 });
+
+test('voice activated output rests during silence and opens for speech', () => {
+  const source = fs.readFileSync('public/voice-controls.js', 'utf8');
+  const line = source.match(/  const shouldPlayRemoteAudio[^\n]+/)[0];
+  const context = {};
+  vm.createContext(context); vm.runInContext(`${line}\nthis.check = shouldPlayRemoteAudio`, context);
+  assert.equal(context.check({}, false, false), false);
+  assert.equal(context.check({}, false, true), true);
+  assert.equal(context.check({ voiceActivatedOutput: false }, false, false), true);
+  assert.equal(context.check({}, true, true), false);
+});

@@ -1,6 +1,7 @@
 (() => {
   const levels = new Map();
   const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
+  const shouldPlayRemoteAudio = (settings, muted, speaking) => !muted && (settings.voiceActivatedOutput === false || speaking);
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const prefs = preferences(peer.person.id);
@@ -10,6 +11,12 @@
   async function routeOutput(peer) {
     applyOutput(peer);
     if (peer.audio.setSinkId) await peer.audio.setSinkId(readSettings().output || '');
+    if (readSettings().voiceActivatedOutput !== false) peer.audio.pause();
+  }
+  function syncRemotePlayback(peer, speaking) {
+    if (shouldPlayRemoteAudio(readSettings(), peer.audio.muted, speaking)) {
+      if (peer.audio.paused) peer.audio.play().catch(() => {});
+    } else if (!peer.audio.paused) peer.audio.pause();
   }
   function saveParticipant(id, patch) {
     saveSettings({ participants: { ...readSettings().participants, [id]: { ...preferences(id), ...patch } } });
@@ -52,6 +59,7 @@
         const analyser = context.createAnalyser(); analyser.fftSize = 512; source.connect(analyser);
         levels.get(person.id)?.context.close().catch(() => {});
         levels.set(person.id, { context, source, analyser, samples: new Uint8Array(512), until: 0 });
+        syncRemotePlayback(peer, false);
         context.resume().catch(() => {});
       } catch (error) { console.warn('Indicador de fala indisponível', error); }
     });
@@ -69,8 +77,11 @@
       if (!meter) continue;
       meter.analyser.getByteTimeDomainData(meter.samples);
       const rms = Math.sqrt(meter.samples.reduce((sum, sample) => sum + ((sample - 128) / 128) ** 2, 0) / meter.samples.length);
-      if (rms > 0.025) meter.until = Date.now() + 250;
-      row.dataset.speaking = String(Date.now() < meter.until);
+      if (rms > 0.012) meter.until = Date.now() + 600;
+      const speaking = Date.now() < meter.until;
+      row.dataset.speaking = String(speaking);
+      const peer = voicePeers.get(row.dataset.voiceUserId);
+      if (peer) syncRemotePlayback(peer, speaking);
     }
   }, 100);
   document.addEventListener('pointerdown', () => {
@@ -121,7 +132,13 @@
     };
     const echo = makeToggle('settings-echo-cancellation', 'Cancelar eco do ambiente', 'echoCancellation');
     const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
-    autoGain.closest('label').after(echo, noise);
+    const activatedOutput = makeToggle('settings-voice-activated-output', 'Ativar saída somente quando alguém falar', 'voiceActivatedOutput');
+    activatedOutput.querySelector('input').onchange = () => {
+      const enabled = activatedOutput.querySelector('input').checked;
+      saveSettings({ voiceActivatedOutput: enabled });
+      for (const peer of voicePeers.values()) syncRemotePlayback(peer, !enabled);
+    };
+    autoGain.closest('label').after(echo, noise, activatedOutput);
     const activeTrack = microphoneStream?.getAudioTracks()[0], active = activeTrack?.getSettings?.();
     if (activeTrack) {
       const format = document.createElement('p'); format.className = 'voice-format';
