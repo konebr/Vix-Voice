@@ -2,6 +2,7 @@
   const levels = new Map();
   const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
   const shouldPlayRemoteAudio = (settings, muted, speaking) => !muted && (settings.voiceActivatedOutput === false || speaking);
+  const isRemoteSpeaking = (contextState, rms, until, now) => contextState !== 'running' || rms > 0.012 || now < until;
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const prefs = preferences(peer.person.id);
@@ -55,10 +56,11 @@
       if (event.track.kind !== 'audio' || event.transceiver === peer.screenAudioTransceiver) return;
       applyOutput(peer);
       try {
-        const context = new AudioContext(), source = context.createMediaStreamSource(new MediaStream([event.track]));
+        const context = playbackContext || new AudioContext(), ownsContext = context !== playbackContext;
+        const source = context.createMediaStreamSource(new MediaStream([event.track]));
         const analyser = context.createAnalyser(); analyser.fftSize = 512; source.connect(analyser);
-        levels.get(person.id)?.context.close().catch(() => {});
-        levels.set(person.id, { context, source, analyser, samples: new Uint8Array(512), until: 0 });
+        const previous = levels.get(person.id); previous?.source.disconnect(); if (previous?.ownsContext) previous.context.close().catch(() => {});
+        levels.set(person.id, { context, ownsContext, source, analyser, samples: new Uint8Array(512), until: 0 });
         syncRemotePlayback(peer, false);
         context.resume().catch(() => {});
       } catch (error) { console.warn('Indicador de fala indisponível', error); }
@@ -67,7 +69,7 @@
   };
   const baseClose = closeVoicePeer;
   closeVoicePeer = id => {
-    const meter = levels.get(id); meter?.source.disconnect(); meter?.context.close().catch(() => {}); levels.delete(id);
+    const meter = levels.get(id); meter?.source.disconnect(); if (meter?.ownsContext) meter.context.close().catch(() => {}); levels.delete(id);
     baseClose(id);
   };
   setInterval(() => {
@@ -77,8 +79,8 @@
       if (!meter) continue;
       meter.analyser.getByteTimeDomainData(meter.samples);
       const rms = Math.sqrt(meter.samples.reduce((sum, sample) => sum + ((sample - 128) / 128) ** 2, 0) / meter.samples.length);
-      if (rms > 0.012) meter.until = Date.now() + 600;
-      const speaking = Date.now() < meter.until;
+      const now = Date.now(); if (rms > 0.012) meter.until = now + 600;
+      const speaking = isRemoteSpeaking(meter.context.state, rms, meter.until, now);
       row.dataset.speaking = String(speaking);
       const peer = voicePeers.get(row.dataset.voiceUserId);
       if (peer) syncRemotePlayback(peer, speaking);

@@ -28,3 +28,14 @@ test('voice activated output rests during silence and opens for speech', () => {
   assert.equal(context.check({ voiceActivatedOutput: false }, false, false), true);
   assert.equal(context.check({}, true, true), false);
 });
+
+test('every remote participant uses the unlocked context and suspended meters fail open', () => {
+  const source = fs.readFileSync('public/voice-controls.js', 'utf8');
+  const line = source.match(/  const isRemoteSpeaking[^\n]+/)[0];
+  const context = {};
+  vm.createContext(context); vm.runInContext(`${line}\nthis.check = isRemoteSpeaking`, context);
+  assert.equal(context.check('running', 0, 0, 100), false);
+  assert.equal(context.check('running', 0.02, 0, 100), true);
+  assert.equal(context.check('suspended', 0, 0, 100), true);
+  assert.match(source, /const context = playbackContext \|\| new AudioContext\(\)/);
+});
