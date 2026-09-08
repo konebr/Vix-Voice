@@ -14,7 +14,9 @@ function trusted(url) {
 
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return createWindow();
+  const wasHidden = !mainWindow.isVisible();
   if (mainWindow.isMinimized()) mainWindow.restore();
+  if (wasHidden) mainWindow.webContents.reloadIgnoringCache();
   mainWindow.show();
   mainWindow.focus();
 }
@@ -82,7 +84,7 @@ function createTray() {
   tray.setToolTip('Vix Voice');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Abrir Vix Voice', click: showMainWindow },
-    { label: 'Recarregar', click: () => mainWindow?.webContents.reload() },
+    { label: 'Recarregar', click: () => mainWindow?.webContents.reloadIgnoringCache() },
     { type: 'separator' },
     { label: 'Sair', click: () => { quitting = true; app.quit(); } }
   ]));

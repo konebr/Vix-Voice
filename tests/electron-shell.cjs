@@ -12,5 +12,6 @@ assert.match(source, /setPermissionRequestHandler/, 'as permissões precisam de 
 assert.match(source, /setDisplayMediaRequestHandler/, 'o compartilhamento de tela deve usar o seletor nativo do aplicativo');
 assert.match(source, /requestSingleInstanceLock/, 'somente uma instância deve executar por vez');
 assert.match(source, /new Tray\(/, 'o aplicativo deve continuar disponível na bandeja');
+assert.match(source, /wasHidden[\s\S]*reloadIgnoringCache/, 'reabrir uma janela oculta deve buscar a versão mais recente');
 
 console.log('electron shell: ok');

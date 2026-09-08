@@ -9,5 +9,7 @@ assert.match(source, /servers\.find\(server=>server\.id===lastId\)\|\|servers\[0
 assert.match(source, /queueMicrotask\(boot\)/, 'o boot deve começar somente depois que os complementos da interface forem registrados');
 assert.doesNotMatch(source, /setTimeout\(async\(\)=>\{if\(!state\.identity\)return;if\(privateInvite\)/, 'o seletor privado não deve competir com o boot');
 assert.doesNotMatch(source, /setTimeout\(async\(\)=>\{if\(state\.identity&&!state\.server\)/, 'a restauração não deve depender de temporizador');
+assert.match(source, /refreshWhenClientChanged/, 'o cliente deve verificar atualizações publicadas');
+assert.match(source, /cache:'no-store'/, 'a verificação de atualização não deve reutilizar o cache local');
 
 console.log('server startup: ok');
