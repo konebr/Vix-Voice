@@ -5,19 +5,19 @@
   const isRemoteSpeaking = (contextState, rms, until, now) => contextState !== 'running' || rms > 0.012 || now < until;
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
-    const prefs = preferences(peer.person.id);
-    peer.audio.volume = clamp(readSettings().outputVolume ?? 100) * clamp(prefs.volume ?? 100) / 10000;
-    peer.audio.muted = deafened || !!prefs.muted;
+    const settings = readSettings(), prefs = preferences(peer.person.id), blocked = deafened || !!prefs.muted;
+    peer.audio.volume = clamp(settings.outputVolume ?? 100) * clamp(prefs.volume ?? 100) / 10000;
+    peer.audio.muted = !shouldPlayRemoteAudio(settings, blocked, peer.remoteSpeaking === true);
   }
   async function routeOutput(peer) {
     applyOutput(peer);
     if (peer.audio.setSinkId) await peer.audio.setSinkId(readSettings().output || '');
-    if (readSettings().voiceActivatedOutput !== false) peer.audio.pause();
+    if (peer.audio.paused) await peer.audio.play().catch(() => {});
   }
   function syncRemotePlayback(peer, speaking) {
-    if (shouldPlayRemoteAudio(readSettings(), peer.audio.muted, speaking)) {
-      if (peer.audio.paused) peer.audio.play().catch(() => {});
-    } else if (!peer.audio.paused) peer.audio.pause();
+    peer.remoteSpeaking = speaking;
+    applyOutput(peer);
+    if (peer.audio.paused) peer.audio.play().catch(() => {});
   }
   function saveParticipant(id, patch) {
     saveSettings({ participants: { ...readSettings().participants, [id]: { ...preferences(id), ...patch } } });
@@ -138,7 +138,7 @@
     activatedOutput.querySelector('input').onchange = () => {
       const enabled = activatedOutput.querySelector('input').checked;
       saveSettings({ voiceActivatedOutput: enabled });
-      for (const peer of voicePeers.values()) syncRemotePlayback(peer, !enabled);
+      for (const peer of voicePeers.values()) syncRemotePlayback(peer, enabled ? peer.remoteSpeaking === true : true);
     };
     autoGain.closest('label').after(echo, noise, activatedOutput);
     const activeTrack = microphoneStream?.getAudioTracks()[0], active = activeTrack?.getSettings?.();
