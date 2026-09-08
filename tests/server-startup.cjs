@@ -11,5 +11,8 @@ assert.doesNotMatch(source, /setTimeout\(async\(\)=>\{if\(!state\.identity\)retu
 assert.doesNotMatch(source, /setTimeout\(async\(\)=>\{if\(state\.identity&&!state\.server\)/, 'a restauração não deve depender de temporizador');
 assert.match(source, /refreshWhenClientChanged/, 'o cliente deve verificar atualizações publicadas');
 assert.match(source, /cache:'no-store'/, 'a verificação de atualização não deve reutilizar o cache local');
+const setup = source.match(/function setup\(\)[^\n]+/)[0];
+assert.match(setup, /\$\('leave'\)\.onclick=\(\)=>openUserSettings\(\)/, 'a inicialização deve manter a engrenagem ligada às configurações do usuário');
+assert.doesNotMatch(setup, /\$\('leave'\)\.onclick=openPicker/, 'a engrenagem não deve abrir o seletor de servidores');
 
 console.log('server startup: ok');
