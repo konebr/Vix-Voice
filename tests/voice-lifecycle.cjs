@@ -42,3 +42,19 @@ test('failed signaling leaves voice instead of remaining stuck on connecting', a
   assert.equal(context.stopped, true);
   assert.match(alerts[0], /Não foi possível entrar/);
 });
+
+test('local user is only visible in the voice room while actually connected', () => {
+  const source = fs.readFileSync('public/server-management.js', 'utf8');
+  const filter = source.match(/function visibleVoiceUsers\(users\) \{[^}]+\}/)[0];
+  const context = { state: { identity: { id: 'me' } }, microphoneStream: null, voiceRoomConnected: false, Boolean };
+  vm.createContext(context); vm.runInContext(filter, context);
+  const users = [{ user_id: 'me' }, { user_id: 'other' }];
+  assert.deepEqual(Array.from(context.visibleVoiceUsers(users), user => user.user_id), ['other']);
+  context.microphoneStream = {}; context.voiceRoomConnected = true;
+  assert.deepEqual(Array.from(context.visibleVoiceUsers(users), user => user.user_id), ['me', 'other']);
+});
+
+test('leaving voice explicitly removes the HTTP signaling session', () => {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  assert.match(source, /api\(signalPath,\{method:'DELETE'\}\)/);
+});

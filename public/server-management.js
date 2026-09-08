@@ -113,6 +113,9 @@
     const avatar = document.createElement('span'); avatar.textContent = initials(user.name); avatar.style.background = user.color || '#5865f2';
     const name = document.createElement('span'); name.textContent = user.user_id === state.identity?.id ? 'Você' : user.name; row.append(avatar, name); return row;
   }
+  function visibleVoiceUsers(users) {
+    return users.filter(user => user.user_id !== state.identity?.id || Boolean(microphoneStream && voiceRoomConnected));
+  }
   function renderVoiceChannels() {
     let list = $('voice-channel-list');
     if (!list) { list = document.createElement('div'); list.id = 'voice-channel-list'; $('voice-channel').before(list); $('voice-channel').hidden = true; }
@@ -129,14 +132,14 @@
       const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name;
       const occupancy = document.createElement('span'); occupancy.className = 'room-occupancy'; occupancy.textContent = users.length ? String(users.length) : '';
       channelButton.append(icon, name, occupancy);
-      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); voiceUsers.push({ user_id: state.identity.id, name: state.identity.name, color: state.identity.color, channel: channel.id }); renderVoiceChannels(); await startVoice(); if (!microphoneStream) { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); } closeMobileChannels?.(); };
+      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); await startVoice(); if (!microphoneStream) renderVoiceChannels(); closeMobileChannels?.(); };
       block.append(channelButton);
       if (selectedVoiceChannel.id === channel.id) { activeUsers.replaceChildren(...users.map(simpleVoiceUser)); block.append(activeUsers); }
       else { const target = document.createElement('div'); target.className = 'voice-users passive'; target.append(...users.map(simpleVoiceUser)); block.append(target); }
       list.append(block);
     }
   }
-  window.renderVoiceChannelUsers = users => { voiceUsers = users; renderVoiceChannels(); };
+  window.renderVoiceChannelUsers = users => { voiceUsers = visibleVoiceUsers(users); renderVoiceChannels(); };
   async function loadVoiceChannels(forceFirst = false) {
     if (!state.server) return; const result = await api(`/api/servers/${state.server.id}/voice-channels`); voiceChannels = result.channels;
     const selected = !forceFirst && voiceChannels.find(channel => channel.id === selectedVoiceChannel.id); selectedVoiceChannel = selected || voiceChannels[0] || { id: 'Geral', name: 'Geral' }; renderVoiceChannels(); await refreshVoiceUsers();
