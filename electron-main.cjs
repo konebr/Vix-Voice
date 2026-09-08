@@ -1,7 +1,7 @@
 const { app, BrowserWindow, shell, session, Menu, Tray, nativeImage, desktopCapturer } = require('electron');
 const path = require('path');
 
-const APP_URL = process.env.VIX_APP_URL || 'https://app.vix-voice.com.br';
+const APP_URL = process.env.VIX_APP_URL || 'https://app.vix-voice.com.br/app/';
 const APP_ORIGIN = new URL(APP_URL).origin;
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 let mainWindow = null;

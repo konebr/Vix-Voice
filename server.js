@@ -7,7 +7,8 @@ const port = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
 
 const server = http.createServer((req, res) => {
-  const requested = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  const pathname = req.url.split('?')[0];
+  const requested = pathname === '/' ? '/index.html' : /^\/app\/?$/.test(pathname) ? '/app/index.html' : pathname;
   const safePath = path.normalize(requested).replace(/^([.][.][\\/])+/, '');
   const file = path.join(publicDir, safePath);
   if (!file.startsWith(publicDir)) return res.writeHead(403).end('Forbidden');
