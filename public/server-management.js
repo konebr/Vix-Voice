@@ -110,7 +110,8 @@
 
   function simpleVoiceUser(user) {
     const row = document.createElement('div'); row.className = 'voice-user'; row.dataset.voiceUserId = user.user_id;
-    const avatar = document.createElement('span'); avatar.textContent = initials(user.name); avatar.style.background = user.color || '#5865f2';
+    const profile = window.memberProfileFor?.(user.user_id) || user;
+    const avatar = document.createElement('span'); paintAvatar(avatar, profile.avatar, profile.name || user.name, profile.color || user.color);
     const name = document.createElement('span'); name.textContent = user.user_id === state.identity?.id ? 'Você' : user.name; row.append(avatar, name); return row;
   }
   function visibleVoiceUsers(users) {
