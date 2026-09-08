@@ -43,18 +43,28 @@
     }
   }
   function remove(id) { screens.delete(id); if (selected === id) close(); render(); }
+  function useScreenTransceivers(peer, create) {
+    const transceivers = peer.connection.getTransceivers();
+    const microphone = transceivers.find(item => item.sender.track?.kind === 'audio');
+    peer.screenTransceiver ||= transceivers.find(item => item.receiver.track?.kind === 'video') || (create ? peer.connection.addTransceiver('video', { direction: 'sendrecv' }) : null);
+    peer.screenAudioTransceiver ||= transceivers.find(item => item !== microphone && item.receiver.track?.kind === 'audio') || (create ? peer.connection.addTransceiver('audio', { direction: 'sendrecv' }) : null);
+    if (peer.screenTransceiver) { peer.screenTransceiver.direction = 'sendrecv'; peer.screenSender = peer.screenTransceiver.sender; }
+    if (peer.screenAudioTransceiver) peer.screenAudioTransceiver.direction = 'sendrecv';
+  }
+  globalThis.prepareScreenOffer = peer => useScreenTransceivers(peer, true);
+  globalThis.prepareScreenAnswer = peer => useScreenTransceivers(peer, false);
   const basePeer = ensureVoicePeer;
   ensureVoicePeer = person => {
     const peer = basePeer(person);
-    if (peer.screenTransceiver) return peer;
-    peer.screenTransceiver = peer.connection.addTransceiver('video', { direction: 'sendrecv' });
-    peer.screenSender = peer.screenTransceiver.sender;
+    if (peer.screenEventsReady) return peer;
+    peer.screenEventsReady = true;
     peer.screenApplied = null;
-    peer.screenAudioTransceiver = peer.connection.addTransceiver('audio', { direction: 'sendrecv' });
     peer.screenAudioApplied = null;
     peer.connection.addEventListener('track', event => {
-      const screenAudio = event.transceiver === peer.screenAudioTransceiver;
+      const screenAudio = event.track.kind === 'audio' && !event.streams[0];
       if (event.track.kind !== 'video' && !screenAudio) return;
+      if (event.track.kind === 'video') { peer.screenTransceiver = event.transceiver; peer.screenSender = event.transceiver.sender; }
+      if (screenAudio) peer.screenAudioTransceiver = event.transceiver;
       const item = screens.get(person.id) || { person, active: false };
       if (screenAudio) item.audioTrack = event.track; else item.track = event.track;
       screens.set(person.id, item);

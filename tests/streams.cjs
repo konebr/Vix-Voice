@@ -26,11 +26,12 @@ function harness() {
     setInterval: fn => intervals.push(fn), sendVoiceSignal: data => signals.push(data),
     ensureVoicePeer(person) {
       if (!peers.has(person.id)) {
-        const handlers = {};
+        const handlers = {}, transceivers = [{ direction: 'sendrecv', sender: { track: { kind: 'audio' } }, receiver: { track: { kind: 'audio' } } }];
         peers.set(person.id, { person, connection: {
-          handlers, signalingState: 'stable',
+          handlers, transceivers, signalingState: 'stable',
           addEventListener: (type, fn) => { handlers[type] = fn; },
-    addTransceiver: kind => ({ sender: { replaceTrack: async track => { peers.get(person.id).sent = track; (peers.get(person.id).sentByKind ||= {})[kind] = track; } } })
+          getTransceivers: () => transceivers,
+          addTransceiver: (kind, options = {}) => { const item = { direction: options.direction, sender: { track: null, replaceTrack: async track => { peers.get(person.id).sent = track; (peers.get(person.id).sentByKind ||= {})[kind] = track; } }, receiver: { track: { kind } } }; transceivers.push(item); return item; }
         } });
       }
       return peers.get(person.id);
@@ -61,6 +62,7 @@ test('ongoing share reaches a late participant and stop/start reuses its sender'
   h.context.screenStream = { getVideoTracks: () => [track], getAudioTracks: () => [] };
   await h.sync();
   const peer = h.context.ensureVoicePeer({ id: 'late', name: 'Late' });
+  h.context.prepareScreenOffer(peer);
   await h.sync();
   assert.equal(peer.sent, track);
   assert.equal(h.signals.at(-1).type, 'screen-start');
@@ -74,6 +76,7 @@ test('ongoing share reaches a late participant and stop/start reuses its sender'
 test('screen audio uses its own sender and stops together with the screen', async () => {
   const h = harness(), video = { id: 'video', readyState: 'live' }, audio = { id: 'audio', readyState: 'live' };
   const peer = h.context.ensureVoicePeer({ id: 'viewer', name: 'Viewer' });
+  h.context.prepareScreenOffer(peer);
   h.context.screenStream = { getVideoTracks: () => [video], getAudioTracks: () => [audio] };
   await h.sync();
   assert.equal(peer.sentByKind.video, video);
@@ -82,6 +85,18 @@ test('screen audio uses its own sender and stops together with the screen', asyn
   await h.sync();
   assert.equal(peer.sentByKind.video, null);
   assert.equal(peer.sentByKind.audio, null);
+});
+
+test('answerer reuses offered screen transceivers instead of duplicating them', () => {
+  const h = harness(), peer = h.context.ensureVoicePeer({ id: 'offerer', name: 'Offerer' });
+  peer.connection.addTransceiver('video', { direction: 'recvonly' });
+  peer.connection.addTransceiver('audio', { direction: 'recvonly' });
+  const before = peer.connection.getTransceivers().length;
+  h.context.prepareScreenAnswer(peer);
+  assert.equal(peer.connection.getTransceivers().length, before);
+  assert.equal(before, 3);
+  assert.equal(peer.screenTransceiver.direction, 'sendrecv');
+  assert.equal(peer.screenAudioTransceiver.direction, 'sendrecv');
 });
 
 test('leaving voice clears all screen choices and playback', () => {

@@ -53,7 +53,7 @@
     peer.voiceControlsReady = true;
     routeOutput(peer).catch(error => console.warn('Saída de áudio indisponível', error));
     peer.connection.addEventListener('track', event => {
-      if (event.track.kind !== 'audio' || event.transceiver === peer.screenAudioTransceiver) return;
+      if (event.track.kind !== 'audio' || !event.streams[0]) return;
       applyOutput(peer);
       try {
         const context = playbackContext || new AudioContext(), ownsContext = context !== playbackContext;
