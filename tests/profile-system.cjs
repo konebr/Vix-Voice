@@ -26,6 +26,11 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(worker, /banner TEXT DEFAULT/);
   assert.match(worker, /custom_status TEXT DEFAULT/);
   assert.match(worker, /pronouns TEXT DEFAULT/);
+  assert.match(worker, /profile_cards\(user_id TEXT PRIMARY KEY/);
+  assert.match(worker, /card_theme TEXT DEFAULT/);
+  assert.match(worker, /card_effect TEXT DEFAULT/);
+  assert.match(worker, /profile_badge TEXT DEFAULT/);
+  assert.match(worker, /u\.pathname\.startsWith\('\/api\/profile'\)/);
   assert.match(worker, /COALESCE\(member_profiles\.avatar/);
   assert.match(worker, /COALESCE\(member_profiles\.banner/);
   assert.match(app, /document\.addEventListener\('contextmenu'/);
@@ -38,6 +43,10 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /profile-banner-file/);
   assert.match(app, /image\/gif/);
   assert.match(app, /memberCard\.classList\.add\('is-opening'\)/);
+  assert.match(app, /profile-card-theme/);
+  assert.match(app, /profile-card-effect/);
+  assert.match(app, /member-card-action/);
+  assert.match(app, /card_theme:state\.identity\.card_theme/);
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
   assert.match(voice, /window\.memberProfileFor/);
 });
