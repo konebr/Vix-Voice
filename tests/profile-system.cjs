@@ -3,14 +3,18 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-test('profile image validation only accepts compact raster data URLs', () => {
+test('profile image validation accepts compact static and animated raster data URLs', () => {
   const source = fs.readFileSync('src/worker.js', 'utf8');
   const declaration = source.split(/\r?\n/).find(line => line.startsWith('const safeAvatar=')).replace('const safeAvatar=', 'safeAvatar=');
+  const bannerDeclaration = source.split(/\r?\n/).find(line => line.startsWith('const safeBanner=')).replace('const safeBanner=', 'safeBanner=');
   const context = {};
-  vm.createContext(context); vm.runInContext(declaration, context);
+  vm.createContext(context); vm.runInContext(`${declaration};${bannerDeclaration}`, context);
   assert.equal(context.safeAvatar('data:image/jpeg;base64,YWJj'), 'data:image/jpeg;base64,YWJj');
+  assert.equal(context.safeAvatar('data:image/gif;base64,R0lGODlh'), 'data:image/gif;base64,R0lGODlh');
+  assert.equal(context.safeBanner('data:image/gif;base64,R0lGODlh'), 'data:image/gif;base64,R0lGODlh');
   assert.equal(context.safeAvatar('data:image/svg+xml;base64,YWJj'), '');
-  assert.equal(context.safeAvatar(`data:image/png;base64,${'a'.repeat(180001)}`), '');
+  assert.equal(context.safeAvatar(`data:image/png;base64,${'a'.repeat(900001)}`), '');
+  assert.equal(context.safeBanner(`data:image/gif;base64,${'a'.repeat(2200001)}`), '');
 });
 
 test('profiles persist and are shared with member surfaces', () => {
@@ -32,6 +36,8 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /data-member-id/);
   assert.match(app, /groupServerMembersByRole/);
   assert.match(app, /profile-banner-file/);
+  assert.match(app, /image\/gif/);
+  assert.match(app, /memberCard\.classList\.add\('is-opening'\)/);
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
   assert.match(voice, /window\.memberProfileFor/);
 });

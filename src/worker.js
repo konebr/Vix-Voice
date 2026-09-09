@@ -1,8 +1,8 @@
 const E=new TextEncoder(),j=(x,s=200)=>new Response(JSON.stringify(x),{status:s,headers:{'content-type':'application/json'}}),one=x=>[...x][0];
 const b64=x=>btoa(String.fromCharCode(...x)),unb64=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
 const addColumn=(sql,table,column)=>{try{sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column}`)}catch{}};
-const safeAvatar=value=>{const avatar=String(value||'');return avatar.length<=180000&&/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(avatar)?avatar:''};
-const safeBanner=value=>{const banner=String(value||'');return banner.length<=240000&&/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(banner)?banner:''};
+const safeAvatar=value=>{const avatar=String(value||'');return avatar.length<=900000&&/^data:image\/(?:gif|jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(avatar)?avatar:''};
+const safeBanner=value=>{const banner=String(value||'');return banner.length<=2200000&&/^data:image\/(?:gif|jpeg|png|webp);base64,[a-z0-9+/=]+$/i.test(banner)?banner:''};
 async function hash(p,s){const k=await crypto.subtle.importKey('raw',E.encode(p),'PBKDF2',false,['deriveBits']);return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:s,iterations:100000,hash:'SHA-256'},k,256))}
 async function identity(env,token){const r=await env.USERS.get(env.USERS.idFromName('global')).fetch(`https://auth/session?token=${encodeURIComponent(token||'')}`);return r.ok?(await r.json()).user:null}
 
