@@ -25,7 +25,9 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(worker, /COALESCE\(member_profiles\.avatar/);
   assert.match(worker, /COALESCE\(member_profiles\.banner/);
   assert.match(app, /document\.addEventListener\('contextmenu'/);
-  assert.match(app, /row\.oncontextmenu=event=>openMemberProfile/);
+  assert.match(app, /row\.oncontextmenu=event=>showMemberProfileCard/);
+  assert.match(app, /row\.onclick=event=>showMemberProfileCard/);
+  assert.match(app, /row\.onkeydown=event=>/);
   assert.match(app, /event\.button!==2/, 'o clique direito não deve fechar o cartão ao abri-lo');
   assert.match(app, /data-member-id/);
   assert.match(app, /groupServerMembersByRole/);
