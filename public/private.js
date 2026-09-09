@@ -11,7 +11,7 @@ const hub=document.createElement('section');hub.id='private-hub';hub.className='
 document.body.append(hub);
 const byId=id=>document.getElementById(id),privateState={home:{friends:[],incoming:[],outgoing:[]},tab:'friends',friend:null,messages:[],open:false};
 let homeTimer=null,messageTimer=null,signalTimer=null,signalBusy=false,privatePeer=null,privateStream=null,privateAudio=null,privateCall=null,pendingIce=[];
-const avatar=(person,size=36)=>{const node=document.createElement('span');node.className='private-avatar';node.style.width=node.style.height=`${size}px`;node.style.background=person.color||'#5865f2';node.textContent=initials(person.name);return node};
+const avatar=(person,size=36)=>{const node=document.createElement('span');node.className='private-avatar';node.style.width=node.style.height=`${size}px`;paintAvatar(node,person.avatar,person.name,person.color);return node};
 const button=(label,title,handler)=>{const node=document.createElement('button');node.type='button';node.textContent=label;node.title=title;node.onclick=handler;return node};
 function feedback(message='',ok=false){const node=byId('private-feedback');node.textContent=message;node.style.color=ok?'#23a559':'#fa777c'}
 function friendById(id){return privateState.home.friends.find(friend=>friend.id===id)}

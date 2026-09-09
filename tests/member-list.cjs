@@ -8,7 +8,7 @@ test('member list groups presence and orders roles', () => {
   const begin = source.indexOf('const memberRoleLabel=');
   const end = source.indexOf('function createMemberRow', begin);
   const context = {};
-  vm.runInNewContext(`${source.slice(begin, end)};globalThis.organizeServerMembers=organizeServerMembers;globalThis.memberRoleLabel=memberRoleLabel`, context);
+  vm.runInNewContext(`${source.slice(begin, end)};globalThis.organizeServerMembers=organizeServerMembers;globalThis.groupServerMembersByRole=groupServerMembersByRole;globalThis.memberRoleLabel=memberRoleLabel`, context);
   const members = [
     { name: 'Membro offline', role: 'Membro', online: 0 },
     { name: 'Admin online', role: 'Admin', online: 1 },
@@ -18,4 +18,7 @@ test('member list groups presence and orders roles', () => {
   assert.deepEqual(Array.from(context.organizeServerMembers(members), member => member.name), ['Dono online', 'Admin online', 'Membro online', 'Membro offline']);
   assert.equal(context.memberRoleLabel('Admin'), 'Administrador');
   assert.equal(context.memberRoleLabel('Membro'), 'Membro');
+  const groups = Array.from(context.groupServerMembersByRole(members));
+  assert.deepEqual(groups.map(group => group.label), ['Dono', 'Administrador', 'Membro']);
+  assert.deepEqual(Array.from(groups[2].members, member => member.name), ['Membro online', 'Membro offline']);
 });

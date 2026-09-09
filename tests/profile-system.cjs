@@ -19,9 +19,15 @@ test('profiles persist and are shared with member surfaces', () => {
   const voice = fs.readFileSync('public/server-management.js', 'utf8');
   assert.match(worker, /u\.pathname==='\/api\/profile'/);
   assert.match(worker, /avatar TEXT DEFAULT/);
+  assert.match(worker, /banner TEXT DEFAULT/);
+  assert.match(worker, /custom_status TEXT DEFAULT/);
+  assert.match(worker, /pronouns TEXT DEFAULT/);
   assert.match(worker, /COALESCE\(member_profiles\.avatar/);
+  assert.match(worker, /COALESCE\(member_profiles\.banner/);
   assert.match(app, /document\.addEventListener\('contextmenu'/);
   assert.match(app, /data-member-id/);
+  assert.match(app, /groupServerMembersByRole/);
+  assert.match(app, /profile-banner-file/);
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
   assert.match(voice, /window\.memberProfileFor/);
 });
