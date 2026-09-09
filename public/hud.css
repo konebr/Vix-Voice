@@ -12,6 +12,8 @@
   --green: #36d991;
   --danger: #ff6470;
   color-scheme: dark;
+  font-family: "Segoe UI Variable Text", "Segoe UI Variable", Inter, "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
 }
 
 body {
@@ -19,9 +21,14 @@ body {
     radial-gradient(circle at 72% -10%, #353a8b22, transparent 32%),
     var(--deep);
   letter-spacing: -.005em;
+  font-family: inherit;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
 }
 
 button, input, textarea, select { font-family: inherit; }
+h1, h2, h3, .server-title, .header, .profile-name, .member-name { font-family: "Segoe UI Variable Display", "Segoe UI Variable Text", Inter, "Segoe UI", system-ui, sans-serif; }
+h1, h2, h3 { font-weight: 720; }
 button { transition: color .16s, background .16s, border-color .16s, transform .16s, box-shadow .16s; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 2px solid var(--brand-bright);
@@ -306,7 +313,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .member.has-banner:hover::before { opacity: .58; }
 .member .avatar { width: 34px; height: 34px; box-shadow: 0 4px 12px #0004; }
 .member-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
-.member-name { overflow: hidden; color: #d9dce3; font-size: 13px; font-weight: 650; text-overflow: ellipsis; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+.member-name { overflow: hidden; color: #d9dce3; font-size: 13px; font-weight: 620; letter-spacing: -.012em; text-overflow: ellipsis; text-shadow: 0 1px 3px #000; white-space: nowrap; }
 .member-role { width: max-content; max-width: 100%; overflow: hidden; color: #7f889a; font-size: 9px; letter-spacing: .015em; text-overflow: ellipsis; white-space: nowrap; }
 .member-role.role-owner { color: #f4c45c; }
 .member-role.role-admin { color: #a9a7ff; }

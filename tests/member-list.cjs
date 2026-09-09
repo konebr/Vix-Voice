@@ -8,7 +8,7 @@ test('member list groups presence and orders roles', () => {
   const begin = source.indexOf('const memberRoleLabel=');
   const end = source.indexOf('function createMemberRow', begin);
   const context = {};
-  vm.runInNewContext(`${source.slice(begin, end)};globalThis.organizeServerMembers=organizeServerMembers;globalThis.groupServerMembersByRole=groupServerMembersByRole;globalThis.memberRoleLabel=memberRoleLabel`, context);
+  vm.runInNewContext(`${source.slice(begin, end)};globalThis.organizeServerMembers=organizeServerMembers;globalThis.groupServerMembersByRole=groupServerMembersByRole;globalThis.memberRoleLabel=memberRoleLabel;globalThis.readableRoleColor=readableRoleColor`, context);
   const members = [
     { name: 'Membro offline', role: 'Membro', online: 0 },
     { name: 'Admin online', role: 'Admin', online: 1 },
@@ -21,4 +21,6 @@ test('member list groups presence and orders roles', () => {
   const groups = Array.from(context.groupServerMembersByRole(members));
   assert.deepEqual(groups.map(group => group.label), ['Dono', 'Administrador', 'Membro']);
   assert.deepEqual(Array.from(groups[2].members, member => member.name), ['Membro online', 'Membro offline']);
+  assert.equal(context.readableRoleColor('#000000'), '#949494');
+  assert.equal(context.readableRoleColor('#eb459e'), '#eb459e');
 });
