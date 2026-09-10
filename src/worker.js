@@ -37,7 +37,7 @@ Users.prototype.fetch=async function(request){
   return j({ok:true});
 };
 
-export class Servers{constructor(c,env){this.c=c;this.env=env;c.storage.sql.exec('CREATE TABLE IF NOT EXISTS servers(id TEXT PRIMARY KEY,name TEXT,icon TEXT,owner TEXT,invite TEXT UNIQUE,created INTEGER)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS members(server_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(server_id,user_id))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS channels(server_id TEXT,name TEXT,PRIMARY KEY(server_id,name))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,server_id TEXT,channel TEXT,author TEXT,author_id TEXT,text TEXT,created INTEGER,edited INTEGER)');addColumn(c.storage.sql,'messages','reply_to TEXT DEFAULT ""');addColumn(c.storage.sql,'messages','updated INTEGER DEFAULT 0');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS reactions(message_id TEXT,emoji TEXT,user_id TEXT,PRIMARY KEY(message_id,emoji,user_id))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS message_deletions(id TEXT PRIMARY KEY,server_id TEXT,deleted INTEGER)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,avatar TEXT DEFAULT "",bio TEXT DEFAULT "",PRIMARY KEY(server_id,user_id))');addColumn(c.storage.sql,'member_profiles','avatar TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','bio TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','banner TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','custom_status TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','pronouns TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','card_theme TEXT DEFAULT "midnight"');addColumn(c.storage.sql,'member_profiles','card_effect TEXT DEFAULT "none"');addColumn(c.storage.sql,'member_profiles','profile_badge TEXT DEFAULT ""');}
+export class Servers{constructor(c,env){this.c=c;this.env=env;c.storage.sql.exec('CREATE TABLE IF NOT EXISTS servers(id TEXT PRIMARY KEY,name TEXT,icon TEXT,owner TEXT,invite TEXT UNIQUE,created INTEGER)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS members(server_id TEXT,user_id TEXT,role TEXT,PRIMARY KEY(server_id,user_id))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS channels(server_id TEXT,name TEXT,PRIMARY KEY(server_id,name))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY,server_id TEXT,channel TEXT,author TEXT,author_id TEXT,text TEXT,created INTEGER,edited INTEGER)');addColumn(c.storage.sql,'messages','reply_to TEXT DEFAULT ""');addColumn(c.storage.sql,'messages','updated INTEGER DEFAULT 0');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS reactions(message_id TEXT,emoji TEXT,user_id TEXT,PRIMARY KEY(message_id,emoji,user_id))');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS message_deletions(id TEXT PRIMARY KEY,server_id TEXT,deleted INTEGER)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS message_attachments(id TEXT PRIMARY KEY,message_id TEXT UNIQUE,name TEXT,type TEXT,size INTEGER,data TEXT)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS message_pins(server_id TEXT,message_id TEXT PRIMARY KEY,pinned_by TEXT,pinned_at INTEGER)');c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,avatar TEXT DEFAULT "",bio TEXT DEFAULT "",PRIMARY KEY(server_id,user_id))');addColumn(c.storage.sql,'member_profiles','avatar TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','bio TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','banner TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','custom_status TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','pronouns TEXT DEFAULT ""');addColumn(c.storage.sql,'member_profiles','card_theme TEXT DEFAULT "midnight"');addColumn(c.storage.sql,'member_profiles','card_effect TEXT DEFAULT "none"');addColumn(c.storage.sql,'member_profiles','profile_badge TEXT DEFAULT ""');}
   user(req){return identity(this.env,req.headers.get('x-vix-token')||new URL(req.url).searchParams.get('token'))} member(s,u){return one(this.c.storage.sql.exec('SELECT role FROM members WHERE server_id=? AND user_id=?',s,u.id))?.role} admin(s,u){return ['Dono','Admin'].includes(this.member(s,u))}
   async fetch(req){const u=new URL(req.url),user=await this.user(req);if(!user)return j({error:'Não autenticado'},401);if(u.pathname==='/api/servers'&&req.method==='GET')return j({servers:[...this.c.storage.sql.exec('SELECT servers.* ,members.role FROM servers JOIN members ON servers.id=members.server_id WHERE members.user_id=? ORDER BY created',user.id)]});if(u.pathname==='/api/servers'&&req.method==='POST'){const x=await req.json(),name=String(x.name||'').trim().slice(0,32);if(name.length<2)return j({error:'Nome inválido'},400);const id=crypto.randomUUID(),invite=crypto.randomUUID().slice(0,8);this.c.storage.sql.exec('INSERT INTO servers VALUES(?,?,?,?,?,?)',id,name,name.slice(0,1).toUpperCase(),user.id,invite,Date.now());this.c.storage.sql.exec('INSERT INTO members VALUES(?,?,?)',id,user.id,'Dono');for(const n of ['geral','boas-vindas'])this.c.storage.sql.exec('INSERT INTO channels VALUES(?,?)',id,n);return j({id,name,invite})}const join=u.pathname.match(/^\/api\/servers\/join\/([\w-]+)$/);if(join&&req.method==='POST'){const s=one(this.c.storage.sql.exec('SELECT id FROM servers WHERE invite=?',join[1]));if(!s)return j({error:'Convite inválido'},404);this.c.storage.sql.exec('INSERT OR IGNORE INTO members VALUES(?,?,?)',s.id,user.id,'Membro');return j({id:s.id})}const info=u.pathname.match(/^\/api\/servers\/([\w-]+)$/);if(info&&req.method==='GET'){if(!this.member(info[1],user))return j({error:'Sem acesso'},403);return j({channels:[...this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=?',info[1])],messages:[...this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? ORDER BY created DESC LIMIT 200',info[1])].reverse()})}const ws=u.pathname.match(/^\/ws\/([\w-]+)$/);if(ws)return this.websocket(req,ws[1],user);return j({error:'Rota inexistente'},404)}
   websocket(req,serverId,user){if(!this.member(serverId,user))return new Response('Sem acesso',{status:403});const pair=new WebSocketPair(),client=pair[0],server=pair[1];server.accept();server.addEventListener('message',e=>this.message(serverId,user,server,e.data));return new Response(null,{status:101,webSocket:client})}message(s,u,peer,raw){let m;try{m=JSON.parse(raw)}catch{return}if(m.type==='chat'){const text=String(m.text||'').trim().slice(0,1000),channel=String(m.channel||'').slice(0,32);if(!text)return;const id=crypto.randomUUID(),created=Date.now();this.c.storage.sql.exec('INSERT INTO messages(id,server_id,channel,author,author_id,text,created,edited,reply_to,updated) VALUES(?,?,?,?,?,?,?,?,?,?)',id,s,channel,u.name,u.id,text,created,0,'',created);peer.send(JSON.stringify({type:'chat',id,channel,name:u.name,text,created}));return}}}
@@ -409,15 +409,16 @@ Servers.prototype.chatMessage=function(row,user){
   if(!row)return null;
   const reply=row.reply_to?one(this.c.storage.sql.exec('SELECT id,author,text FROM messages WHERE server_id=? AND id=?',row.server_id,row.reply_to)):null;
   const reactions=[...this.c.storage.sql.exec('SELECT emoji,COUNT(*) AS count,MAX(CASE WHEN user_id=? THEN 1 ELSE 0 END) AS active FROM reactions WHERE message_id=? GROUP BY emoji ORDER BY emoji',user.id,row.id)].map(item=>({...item,count:Number(item.count),active:Boolean(Number(item.active))}));
-  return {...row,reply:row.reply_to?(reply||{id:row.reply_to,deleted:true}):null,reactions};
+  const attachment=one(this.c.storage.sql.exec('SELECT id,name,type,size FROM message_attachments WHERE message_id=?',row.id))||null,pinned=Boolean(one(this.c.storage.sql.exec('SELECT message_id FROM message_pins WHERE server_id=? AND message_id=?',row.server_id,row.id)));
+  return {...row,reply:row.reply_to?(reply||{id:row.reply_to,deleted:true}):null,reactions,attachment,pinned};
 };
 Servers.prototype.fetch=async function(request){
   const url=new URL(request.url);
-  const messages=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages$/),typing=url.pathname.match(/^\/api\/servers\/([\w-]+)\/typing$/),message=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/([\w-]+)$/),reaction=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/([\w-]+)\/reactions$/),search=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/search$/);
-  if(!messages&&!typing&&!message&&!reaction&&!search)return realtimeChatFetch.call(this,request);
+  const messages=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages$/),typing=url.pathname.match(/^\/api\/servers\/([\w-]+)\/typing$/),message=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/([\w-]+)$/),reaction=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/([\w-]+)\/reactions$/),search=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/search$/),pin=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages\/([\w-]+)\/pin$/),pins=url.pathname.match(/^\/api\/servers\/([\w-]+)\/pins$/),attachment=url.pathname.match(/^\/api\/servers\/([\w-]+)\/attachments\/([\w-]+)$/);
+  if(!messages&&!typing&&!message&&!reaction&&!search&&!pin&&!pins&&!attachment)return realtimeChatFetch.call(this,request);
   const user=await this.user(request);
   if(!user)return j({error:'Não autenticado'},401);
-  const serverId=(messages||typing||message||reaction||search)[1];
+  const serverId=(messages||typing||message||reaction||search||pin||pins||attachment)[1];
   if(!this.can(serverId,user,'VIEW_CHANNELS'))return j({error:'Sem acesso a este servidor.'},403);
   const now=Date.now(),typingState=this.chatTyping||(this.chatTyping=new Map());
   for(const [key,entry] of typingState)if(now-entry.updated>6500)typingState.delete(key);
@@ -436,14 +437,37 @@ Servers.prototype.fetch=async function(request){
       :[...this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? AND text LIKE ? ORDER BY created DESC LIMIT 50',serverId,`%${query}%`)];
     return j({messages:rows.map(row=>this.chatMessage(row,user))});
   }
+  if(pins&&request.method==='GET'){
+    const channel=String(url.searchParams.get('channel')||'').slice(0,32),rows=channel
+      ?[...this.c.storage.sql.exec('SELECT messages.* FROM message_pins JOIN messages ON messages.id=message_pins.message_id WHERE message_pins.server_id=? AND messages.channel=? ORDER BY message_pins.pinned_at DESC LIMIT 100',serverId,channel)]
+      :[...this.c.storage.sql.exec('SELECT messages.* FROM message_pins JOIN messages ON messages.id=message_pins.message_id WHERE message_pins.server_id=? ORDER BY message_pins.pinned_at DESC LIMIT 100',serverId)];
+    return j({messages:rows.map(row=>this.chatMessage(row,user))});
+  }
+  if(attachment&&request.method==='GET'){
+    const file=one(this.c.storage.sql.exec('SELECT message_attachments.* FROM message_attachments JOIN messages ON messages.id=message_attachments.message_id WHERE messages.server_id=? AND message_attachments.id=?',serverId,attachment[2]));
+    if(!file)return j({error:'Arquivo não encontrado.'},404);
+    const match=/^data:([^;,]+);base64,([a-z0-9+/=]+)$/i.exec(file.data||'');
+    if(!match)return j({error:'Arquivo inválido.'},500);
+    return new Response(unb64(match[2]),{headers:{'content-type':file.type,'content-length':String(file.size),'content-disposition':`inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,'cache-control':'private, max-age=300'}});
+  }
   if(messages&&request.method==='POST'){
     if(!this.can(serverId,user,'SEND_MESSAGES'))return j({error:'Você não tem permissão para enviar mensagens.'},403);
-    const body=await request.json().catch(()=>({})),text=String(body.text||'').trim().slice(0,1000),channel=String(body.channel||'').slice(0,32),replyTo=String(body.reply_to||'').slice(0,64);
-    if(!text||!channel||!one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,channel)))return j({error:'Mensagem inválida.'},400);
+    const body=await request.json().catch(()=>({})),text=String(body.text||'').trim().slice(0,1000),channel=String(body.channel||'').slice(0,32),replyTo=String(body.reply_to||'').slice(0,64),file=body.attachment||null;
+    if((!text&&!file)||!channel||!one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,channel)))return j({error:'Mensagem inválida.'},400);
     if(replyTo&&!one(this.c.storage.sql.exec('SELECT id FROM messages WHERE server_id=? AND channel=? AND id=?',serverId,channel,replyTo)))return j({error:'A mensagem respondida não existe mais.'},404);
+    let upload=null;
+    if(file){const name=String(file.name||'arquivo').replace(/[\r\n]/g,' ').slice(0,120),type=String(file.type||'application/octet-stream').toLowerCase(),data=String(file.data||''),match=/^data:([^;,]+);base64,([a-z0-9+/=]+)$/i.exec(data),allowed=new Set(['image/png','image/jpeg','image/gif','image/webp','audio/mpeg','audio/ogg','audio/wav','video/mp4','video/webm','application/pdf','application/zip','text/plain']);const size=Math.floor((match?.[2].replace(/=+$/,'').length||0)*3/4);if(!match||match[1].toLowerCase()!==type||!allowed.has(type)||size<1||size>4194304)return j({error:'Use um arquivo permitido de até 4 MB.'},413);upload={id:crypto.randomUUID(),name,type,size,data};}
     const item={id:crypto.randomUUID(),server_id:serverId,channel,author:user.name,author_id:user.id,text,created:now,edited:0,reply_to:replyTo,updated:now};
     this.c.storage.sql.exec('INSERT INTO messages(id,server_id,channel,author,author_id,text,created,edited,reply_to,updated) VALUES(?,?,?,?,?,?,?,?,?,?)',item.id,item.server_id,item.channel,item.author,item.author_id,item.text,item.created,item.edited,item.reply_to,item.updated);
+    if(upload)this.c.storage.sql.exec('INSERT INTO message_attachments VALUES(?,?,?,?,?,?)',upload.id,item.id,upload.name,upload.type,upload.size,upload.data);
     return j({message:this.chatMessage(item,user)},201);
+  }
+  if(pin&&(request.method==='POST'||request.method==='DELETE')){
+    if(!this.can(serverId,user,'MANAGE_MESSAGES'))return j({error:'Sem permissão para fixar mensagens.'},403);
+    const saved=one(this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? AND id=?',serverId,pin[2]));if(!saved)return j({error:'Mensagem não encontrada.'},404);
+    if(request.method==='POST')this.c.storage.sql.exec('INSERT OR REPLACE INTO message_pins VALUES(?,?,?,?)',serverId,saved.id,user.id,now);else this.c.storage.sql.exec('DELETE FROM message_pins WHERE server_id=? AND message_id=?',serverId,saved.id);
+    this.c.storage.sql.exec('UPDATE messages SET updated=? WHERE id=?',now,saved.id);
+    return j({message:this.chatMessage({...saved,updated:now},user)});
   }
   if(message){
     const saved=one(this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? AND id=?',serverId,message[2]));
@@ -458,6 +482,8 @@ Servers.prototype.fetch=async function(request){
     if(request.method==='DELETE'){
       if(saved.author_id!==user.id&&!this.can(serverId,user,'MANAGE_MESSAGES'))return j({error:'Sem permissão para excluir esta mensagem.'},403);
       this.c.storage.sql.exec('DELETE FROM reactions WHERE message_id=?',saved.id);
+      this.c.storage.sql.exec('DELETE FROM message_attachments WHERE message_id=?',saved.id);
+      this.c.storage.sql.exec('DELETE FROM message_pins WHERE message_id=?',saved.id);
       this.c.storage.sql.exec('DELETE FROM messages WHERE id=?',saved.id);
       this.c.storage.sql.exec('INSERT OR REPLACE INTO message_deletions VALUES(?,?,?)',saved.id,serverId,now);
       return j({ok:true,deleted:saved.id});

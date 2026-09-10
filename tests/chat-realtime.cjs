@@ -66,9 +66,28 @@ test('respostas, reações e pesquisa usam dados persistentes do servidor', () =
 });
 
 test('interface carrega as ações depois da sincronização em tempo real', () => {
-  assert.match(html, /chat-actions\.css\?v=chat-actions-1/);
-  assert.match(html, /chat-actions\.js\?v=chat-actions-1/);
+  assert.match(html, /chat-actions\.css\?v=chat-actions-2/);
+  assert.match(html, /chat-actions\.js\?v=chat-actions-2/);
   assert.ok(html.indexOf('chat-realtime.js') < html.indexOf('chat-actions.js'));
   assert.match(app, /'\/chat-actions\.js'/);
   assert.match(app, /'\/chat-actions\.css'/);
+});
+
+test('arquivos são validados, armazenados separadamente e baixados com autenticação', () => {
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS message_attachments/);
+  assert.match(worker, /size>4194304/);
+  assert.match(worker, /JOIN messages ON messages\.id=message_attachments\.message_id/);
+  assert.match(worker, /content-disposition/);
+  assert.match(actions, /Authorization: `Bearer \$\{state\.identity\.token\}`/);
+  assert.match(actions, /reader\.readAsDataURL/);
+  assert.match(actions, /attachmentUrls/);
+});
+
+test('mensagens fixadas exigem moderação e aparecem no painel do canal', () => {
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS message_pins/);
+  assert.match(worker, /Sem permissão para fixar mensagens/);
+  assert.match(worker, /ORDER BY message_pins\.pinned_at DESC/);
+  assert.match(actions, /capabilities\?\.manageMessages/);
+  assert.match(actions, /Mensagens fixadas/);
+  assert.match(actions, /async function loadPins/);
 });
