@@ -50,3 +50,22 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
   assert.match(voice, /window\.memberProfileFor/);
 });
+
+test('modern account settings provide inline profile, password security and notifications', () => {
+  const worker = fs.readFileSync('src/worker.js', 'utf8');
+  const settings = fs.readFileSync('public/settings-modern.js', 'utf8');
+  const privateClient = fs.readFileSync('public/private.js', 'utf8');
+  const index = fs.readFileSync('public/app/index.html', 'utf8');
+  assert.match(worker, /startsWith\('\/api\/account\/'\)/);
+  assert.match(worker, /u(?:rl)?\.pathname!=='\/api\/account\/password'/);
+  assert.match(worker, /A senha atual está incorreta/);
+  assert.match(worker, /DELETE FROM sessions WHERE user_id=\? AND token<>\?/);
+  assert.match(settings, /inline-profile-form/);
+  assert.match(settings, /current-password/);
+  assert.match(settings, /Dados e privacidade/);
+  assert.match(settings, /notificationPrefs/);
+  assert.match(settings, /window\.vixNotify/);
+  assert.match(privateClient, /window\.vixNotify/);
+  assert.match(index, /settings-modern\.js\?v=settings-1/);
+  assert.match(index, /settings-modern\.css\?v=settings-1/);
+});
