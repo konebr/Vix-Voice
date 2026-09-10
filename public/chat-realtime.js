@@ -14,10 +14,18 @@
     const displayName = String(name || '').trim().toLocaleLowerCase('pt-BR');
     return value.includes('@todos') || value.includes('@everyone') || Boolean(displayName && value.includes(`@${displayName}`));
   };
-  const mergeMessages = (current, incoming) => {
+  const mergeMessages = (current, incoming, deleted = []) => {
     const byId = new Map(current.map(message => [message.id, message]));
     const added = [];
     let changed = false;
+    if (deleted.length) {
+      const removed = new Set(deleted);
+      const kept = current.filter(message => !removed.has(message.id));
+      if (kept.length !== current.length) {
+        current.splice(0, current.length, ...kept);
+        changed = true;
+      }
+    }
     for (const message of incoming || []) {
       const previous = byId.get(message.id);
       if (!previous) {
@@ -118,7 +126,7 @@
     try {
       const result = await api(`/api/servers/${encodeURIComponent(currentServer)}/messages?after=${cursor}`);
       if (state.server?.id !== currentServer) return;
-      const { changed, added } = mergeMessages(state.messages, result.messages || []);
+      const { changed, added } = mergeMessages(state.messages, result.messages || [], result.deleted || []);
       cursor = Math.max(Number(result.cursor) || Date.now(), cursor, ...state.messages.map(messageVersion));
       activeTyping = result.typing || [];
       for (const message of added) {
@@ -126,8 +134,7 @@
         unread.set(message.channel, Number(unread.get(message.channel) || 0) + 1);
       }
       notifyMentions(added);
-      if (changed && added.some(message => message.channel === state.channel)) renderMessages();
-      else if (changed && state.messages.some(message => message.channel === state.channel && messageVersion(message) >= cursor - 2500)) renderMessages();
+      if (changed) renderMessages();
       paintUnread();
       renderTyping();
       retryDelay = 1500;
@@ -172,7 +179,7 @@
   loadServer = async server => {
     clearTimeout(typingStopTimer);
     await baseLoadServer(server);
-    cursor = Math.max(0, ...state.messages.map(messageVersion));
+    cursor = 0;
     unread.clear();
     activeTyping = [];
     paintUnread();
@@ -187,7 +194,7 @@
 
   window.VixChatRealtime = { isMention, mergeMessages, synchronize };
   if (state.server) {
-    cursor = Math.max(0, ...state.messages.map(messageVersion));
+    cursor = 0;
     schedule(true);
   } else schedule();
 })();

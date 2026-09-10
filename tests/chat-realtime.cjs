@@ -6,6 +6,7 @@ const test = require('node:test');
 const root = path.join(__dirname, '..');
 const worker = fs.readFileSync(path.join(root, 'src', 'worker.js'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'public', 'chat-realtime.js'), 'utf8');
+const actions = fs.readFileSync(path.join(root, 'public', 'chat-actions.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public', 'app', 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 
@@ -28,6 +29,7 @@ test('cliente mescla mensagens, evita duplicatas e acompanha não lidas', () => 
   assert.match(client, /unread\.set\(message\.channel/);
   assert.match(client, /channel-unread/);
   assert.match(client, /setTimeout\(synchronize/);
+  assert.match(client, /current\.filter\(message => !removed\.has\(message\.id\)\)/);
 });
 
 test('menções e digitação estão ligadas à interface e às notificações', () => {
@@ -43,4 +45,30 @@ test('ativos do chat são carregados e participam da atualização automática',
   assert.ok(html.indexOf('settings-modern.js') < html.indexOf('chat-realtime.js'));
   assert.match(app, /'\/chat-realtime\.js'/);
   assert.match(app, /'\/chat-realtime\.css'/);
+});
+
+test('ações profissionais do chat respeitam autoria e permissão de moderação', () => {
+  assert.match(actions, /message\.author_id === state\.identity\?\.id/);
+  assert.match(actions, /capabilities\?\.manageMessages/);
+  assert.match(actions, /method: 'PATCH'/);
+  assert.match(actions, /method: 'DELETE'/);
+  assert.match(worker, /saved\.author_id!==user\.id&&!this\.can\(serverId,user,'MANAGE_MESSAGES'\)/);
+});
+
+test('respostas, reações e pesquisa usam dados persistentes do servidor', () => {
+  assert.match(worker, /reply_to TEXT DEFAULT/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS message_deletions/);
+  assert.ok(worker.includes('messages\\/search'));
+  assert.match(worker, /GROUP BY emoji/);
+  assert.match(actions, /reply_to: replyTo/);
+  assert.match(actions, /commonEmoji/);
+  assert.match(actions, /messages\/search\?q=/);
+});
+
+test('interface carrega as ações depois da sincronização em tempo real', () => {
+  assert.match(html, /chat-actions\.css\?v=chat-actions-1/);
+  assert.match(html, /chat-actions\.js\?v=chat-actions-1/);
+  assert.ok(html.indexOf('chat-realtime.js') < html.indexOf('chat-actions.js'));
+  assert.match(app, /'\/chat-actions\.js'/);
+  assert.match(app, /'\/chat-actions\.css'/);
 });
