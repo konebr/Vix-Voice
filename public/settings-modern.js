@@ -40,11 +40,21 @@
     node.className = `settings-feedback ${ok ? 'success' : ''}`;
   }
 
-  function renderAccount() {
+  const sessionTime = value => { const elapsed = Date.now() - Number(value || 0); if (elapsed < 60000) return 'Ativo agora'; if (elapsed < 3600000) return `Ativo há ${Math.floor(elapsed / 60000)} min`; if (elapsed < 86400000) return `Ativo há ${Math.floor(elapsed / 3600000)} h`; return `Ativo há ${Math.floor(elapsed / 86400000)} d`; };
+  async function loadAccountSessions() {
+    const list = $('account-sessions-list'); if (!list) return;
+    try { const { sessions = [] } = await api('/api/account/sessions'); list.replaceChildren();
+      for (const session of sessions) { const row = document.createElement('div'); row.className = 'account-session'; const icon = document.createElement('span'); icon.className = 'account-session-icon'; icon.textContent = /Windows|Vix Voice/i.test(session.device) ? '▣' : /Android|iPhone|iPad/i.test(session.device) ? '▯' : '◎'; const copy = document.createElement('div'); const name = document.createElement('strong'); name.textContent = session.device; const detail = document.createElement('small'); detail.textContent = `${sessionTime(session.last_seen)} · expira em ${new Date(session.expires_at).toLocaleDateString('pt-BR')}`; copy.append(name, detail); const action = document.createElement('button'); action.type = 'button'; action.dataset.sessionId = session.session_id; action.textContent = session.current ? 'Este dispositivo' : 'Encerrar'; action.disabled = Boolean(Number(session.current)); action.onclick = async () => { action.disabled = true; action.textContent = 'Encerrando…'; try { await api(`/api/account/sessions/${encodeURIComponent(session.session_id)}`, { method: 'DELETE' }); await loadAccountSessions(); feedback('Sessão encerrada com segurança.', true); } catch (error) { action.disabled = false; action.textContent = 'Encerrar'; feedback(error.message); } }; row.append(icon, copy, action); list.append(row); }
+      if (!sessions.length) list.textContent = 'Nenhuma sessão ativa foi encontrada.';
+    } catch (error) { list.textContent = error.message; }
+  }
+
+  async function renderAccount() {
     const email = escapeHtml(state.identity?.email || 'E-mail indisponível');
     $('settings-content').innerHTML = `<section class="settings-page settings-account-page"><div class="settings-page-intro"><span>CONTA VIX</span><h1>Minha conta</h1><p>Consulte seus dados de acesso e mantenha sua conta protegida.</p></div>
       <article class="account-hero"><div id="account-avatar" class="avatar"></div><div><small>PERFIL ATIVO</small><h2>${escapeHtml(state.identity.name)}</h2><p>${email}</p></div><span class="account-online">● Online</span></article>
       <div class="settings-section"><div class="settings-section-title"><div><h2>Informações da conta</h2><p>Dados usados para entrar no Vix Voice.</p></div></div><div class="account-details"><label>Nome de exibição<strong>${escapeHtml(state.identity.name)}</strong></label><label>Endereço de e-mail<strong>${email}</strong></label></div></div>
+      <div class="settings-section account-sessions-section"><div class="settings-section-title"><div><h2>Dispositivos conectados</h2><p>Revise e encerre acessos que você não reconhece.</p></div><button id="end-other-sessions" class="settings-secondary">Encerrar outras sessões</button></div><div id="account-sessions-list" class="account-sessions-list"><span class="settings-loading">Carregando sessões…</span></div></div>
       <form id="password-form" class="settings-section password-form"><div class="settings-section-title"><div><h2>Alterar senha</h2><p>Confirme sua senha atual para definir uma nova.</p></div><span class="security-badge">SEGURO</span></div><div class="settings-form-grid"><label>Senha atual<input id="current-password" type="password" autocomplete="current-password" required></label><label>Nova senha<input id="new-password" type="password" autocomplete="new-password" minlength="8" required></label><label>Confirmar nova senha<input id="confirm-password" type="password" autocomplete="new-password" minlength="8" required></label></div><div class="settings-form-actions"><p id="settings-feedback" class="settings-feedback" role="status"></p><button class="settings-primary">Atualizar senha</button></div></form></section>`;
     paintAvatar($('account-avatar'), state.identity.avatar, state.identity.name, state.identity.color);
     $('password-form').onsubmit = async event => {
@@ -55,6 +65,8 @@
       catch (error) { feedback(error.message); }
       finally { button.disabled = false; button.textContent = 'Atualizar senha'; }
     };
+    $('end-other-sessions').onclick = async event => { const button = event.currentTarget; button.disabled = true; button.textContent = 'Encerrando…'; try { await api('/api/account/sessions', { method: 'DELETE' }); await loadAccountSessions(); feedback('Todas as outras sessões foram encerradas.', true); } catch (error) { feedback(error.message); } finally { button.disabled = false; button.textContent = 'Encerrar outras sessões'; } };
+    await loadAccountSessions();
   }
 
   function updateInlinePreview() {
@@ -121,7 +133,7 @@
     if (view === 'privacy') return renderPrivacy(); currentView = view;
     for (const button of settings.querySelectorAll('#settings-nav button')) button.classList.toggle('selected', button.dataset.view === view);
     $('settings-title').textContent = viewNames[view];
-    if (view === 'account') renderAccount(); else if (view === 'profile') await renderProfile(); else if (view === 'notifications') renderNotifications(); else if (view === 'voice') await renderSettingsVoice(); else renderAppearance();
+    if (view === 'account') await renderAccount(); else if (view === 'profile') await renderProfile(); else if (view === 'notifications') renderNotifications(); else if (view === 'voice') await renderSettingsVoice(); else renderAppearance();
   }
 
   openUserSettings = async () => {

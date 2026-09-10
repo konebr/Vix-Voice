@@ -555,3 +555,42 @@ Servers.prototype.fetch=async function(request){
   data.members=(data.members||[]).map(member=>{const saved=one(this.c.storage.sql.exec('SELECT status FROM member_presence_status WHERE server_id=? AND user_id=?',match[1],member.user_id)),fresh=now-Number(member.last_seen||0)<65000,selected=PRESENCE_STATES.has(saved?.status)?saved.status:'online',status=fresh?selected:'offline',visible=status!=='invisible'||member.user_id===viewer?.id;return{...member,presence_status:visible?status:'offline',online:Number(fresh&&selected!=='invisible')}});
   return j(data);
 };
+
+// Segurança de conta: limite de login e gerenciamento de dispositivos conectados.
+const secureUsersFetch=Users.prototype.fetch;
+function sessionDevice(userAgent=''){
+  const agent=String(userAgent);if(/Electron/i.test(agent))return /Windows/i.test(agent)?'Vix Voice para Windows':'Aplicativo Vix Voice';
+  const browser=/Edg\//i.test(agent)?'Microsoft Edge':/Firefox\//i.test(agent)?'Firefox':/Chrome\//i.test(agent)?'Google Chrome':/Safari\//i.test(agent)?'Safari':'Navegador';
+  const system=/Windows/i.test(agent)?'Windows':/Android/i.test(agent)?'Android':/iPhone|iPad/i.test(agent)?'iPhone/iPad':/Mac OS/i.test(agent)?'macOS':/Linux/i.test(agent)?'Linux':'dispositivo desconhecido';return`${browser} em ${system}`;
+}
+Users.prototype.ensureAccountSecurity=function(){
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS session_metadata(token TEXT PRIMARY KEY,session_id TEXT UNIQUE,device TEXT,created INTEGER,last_seen INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS login_attempts(key TEXT PRIMARY KEY,attempts INTEGER,window_started INTEGER,blocked_until INTEGER)');
+};
+Users.prototype.sessionOwner=function(token){return one(this.c.storage.sql.exec('SELECT users.id FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires_at>?',token,Date.now()))};
+Users.prototype.fetch=async function(request){
+  const url=new URL(request.url),token=request.headers.get('Authorization')?.replace('Bearer ','')||url.searchParams.get('token')||'';this.ensureAccountSecurity();
+  if(url.pathname==='/api/auth/login'&&request.method==='POST'){
+    const body=await request.clone().json().catch(()=>({})),email=String(body.email||'').trim().toLowerCase().slice(0,254),ip=String(request.headers.get('CF-Connecting-IP')||request.headers.get('X-Forwarded-For')||'local').split(',')[0].trim().slice(0,64),key=`${ip}|${email}`,now=Date.now();
+    this.c.storage.sql.exec('DELETE FROM login_attempts WHERE window_started<? AND blocked_until<?',now-86400000,now);
+    const attempt=one(this.c.storage.sql.exec('SELECT * FROM login_attempts WHERE key=?',key));
+    if(Number(attempt?.blocked_until||0)>now){const seconds=Math.max(1,Math.ceil((attempt.blocked_until-now)/1000));return new Response(JSON.stringify({error:`Muitas tentativas. Aguarde ${Math.ceil(seconds/60)} minuto(s).`,retry_after:seconds}),{status:429,headers:{'content-type':'application/json','retry-after':String(seconds),'cache-control':'no-store'}})}
+    const response=await secureUsersFetch.call(this,request);
+    if(response.status===401){const within=attempt&&now-Number(attempt.window_started||0)<900000,count=within?Number(attempt.attempts||0)+1:1,started=within?attempt.window_started:now,blocked=count>=5?now+900000:0;this.c.storage.sql.exec('INSERT OR REPLACE INTO login_attempts VALUES(?,?,?,?)',key,count,started,blocked)}else if(response.ok)this.c.storage.sql.exec('DELETE FROM login_attempts WHERE key=?',key);
+    if(response.ok){const data=await response.clone().json().catch(()=>null);if(data?.token)this.c.storage.sql.exec('INSERT OR REPLACE INTO session_metadata VALUES(?,?,?,?,?)',data.token,crypto.randomUUID(),sessionDevice(request.headers.get('User-Agent')),now,now)}
+    return response;
+  }
+  if(url.pathname==='/api/auth/register'&&request.method==='POST'){
+    const response=await secureUsersFetch.call(this,request);if(response.ok){const data=await response.clone().json().catch(()=>null),now=Date.now();if(data?.token)this.c.storage.sql.exec('INSERT OR REPLACE INTO session_metadata VALUES(?,?,?,?,?)',data.token,crypto.randomUUID(),sessionDevice(request.headers.get('User-Agent')),now,now)}return response;
+  }
+  const sessionRoute=url.pathname==='/session';
+  if(sessionRoute){const response=await secureUsersFetch.call(this,request);if(response.ok&&token){const saved=one(this.c.storage.sql.exec('SELECT token FROM session_metadata WHERE token=?',token)),now=Date.now();if(saved)this.c.storage.sql.exec('UPDATE session_metadata SET last_seen=? WHERE token=?',now,token);else this.c.storage.sql.exec('INSERT OR REPLACE INTO session_metadata VALUES(?,?,?,?,?)',token,crypto.randomUUID(),'Sessão anterior',now,now)}return response}
+  const sessionsRoute=url.pathname==='/api/account/sessions',sessionItem=url.pathname.match(/^\/api\/account\/sessions\/([\w-]+)$/);
+  if(sessionsRoute||sessionItem){const user=this.sessionOwner(token);if(!user)return j({error:'Não autenticado'},401);const now=Date.now();this.c.storage.sql.exec('DELETE FROM session_metadata WHERE token NOT IN (SELECT token FROM sessions)');const active=[...this.c.storage.sql.exec('SELECT token,expires_at FROM sessions WHERE user_id=? AND expires_at>?',user.id,now)];for(const item of active)if(!one(this.c.storage.sql.exec('SELECT token FROM session_metadata WHERE token=?',item.token))){const created=Math.max(0,Number(item.expires_at)-2592000000);this.c.storage.sql.exec('INSERT OR REPLACE INTO session_metadata VALUES(?,?,?,?,?)',item.token,crypto.randomUUID(),'Sessão anterior',created,created)}
+    if(sessionsRoute&&request.method==='GET'){const rows=[...this.c.storage.sql.exec('SELECT session_metadata.session_id,session_metadata.device,session_metadata.created,session_metadata.last_seen,sessions.expires_at,CASE WHEN sessions.token=? THEN 1 ELSE 0 END AS current FROM sessions JOIN session_metadata ON session_metadata.token=sessions.token WHERE sessions.user_id=? AND sessions.expires_at>? ORDER BY current DESC,session_metadata.last_seen DESC',token,user.id,now)];return j({sessions:rows})}
+    if(sessionsRoute&&request.method==='DELETE'){this.c.storage.sql.exec('DELETE FROM session_metadata WHERE token IN (SELECT token FROM sessions WHERE user_id=? AND token<>?)',user.id,token);this.c.storage.sql.exec('DELETE FROM sessions WHERE user_id=? AND token<>?',user.id,token);return j({ok:true})}
+    if(sessionItem&&request.method==='DELETE'){const target=one(this.c.storage.sql.exec('SELECT sessions.token FROM sessions JOIN session_metadata ON session_metadata.token=sessions.token WHERE sessions.user_id=? AND session_metadata.session_id=?',user.id,sessionItem[1]));if(!target)return j({error:'Sessão não encontrada.'},404);if(target.token===token)return j({error:'Use “Sair da conta” para encerrar este dispositivo.'},409);this.c.storage.sql.exec('DELETE FROM session_metadata WHERE token=?',target.token);this.c.storage.sql.exec('DELETE FROM sessions WHERE token=?',target.token);return j({ok:true})}
+    return j({error:'Método inválido'},405);
+  }
+  return secureUsersFetch.call(this,request);
+};
