@@ -401,3 +401,34 @@ Users.prototype.fetch=async function(req){
   }
   return j({error:'Rota privada inexistente'},404);
 };
+
+// Chat em tempo real por sincronização incremental. O Durable Object mantém a
+// digitação como estado efêmero e o banco continua sendo a fonte das mensagens.
+const realtimeChatFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url);
+  const messages=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages$/),typing=url.pathname.match(/^\/api\/servers\/([\w-]+)\/typing$/);
+  if(!messages&&!typing)return realtimeChatFetch.call(this,request);
+  const user=await this.user(request);
+  if(!user)return j({error:'Não autenticado'},401);
+  const serverId=(messages||typing)[1];
+  if(!this.can(serverId,user,'VIEW_CHANNELS'))return j({error:'Sem acesso a este servidor.'},403);
+  const now=Date.now(),typingState=this.chatTyping||(this.chatTyping=new Map());
+  for(const [key,entry] of typingState)if(now-entry.updated>6500)typingState.delete(key);
+  if(typing&&request.method==='POST'){
+    if(!this.can(serverId,user,'SEND_MESSAGES'))return j({error:'Sem permissão para enviar mensagens.'},403);
+    const body=await request.json().catch(()=>({})),channel=String(body.channel||'').slice(0,32),key=`${serverId}:${user.id}`;
+    if(!channel||!one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,channel)))return j({error:'Canal inválido.'},400);
+    if(body.typing===false)typingState.delete(key);else typingState.set(key,{serverId,channel,user_id:user.id,name:user.name,updated:now});
+    return j({ok:true});
+  }
+  if(messages&&request.method==='GET'){
+    const after=Math.max(0,Number(url.searchParams.get('after'))||0);
+    const rows=after
+      ?[...this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? AND (created>=? OR edited>=?) ORDER BY created ASC LIMIT 250',serverId,after,after)]
+      :[...this.c.storage.sql.exec('SELECT * FROM messages WHERE server_id=? ORDER BY created DESC LIMIT 200',serverId)].reverse();
+    const activeTyping=[...typingState.values()].filter(entry=>entry.serverId===serverId&&entry.user_id!==user.id).map(({channel,user_id,name})=>({channel,user_id,name}));
+    return j({messages:rows,typing:activeTyping,cursor:now});
+  }
+  return realtimeChatFetch.call(this,request);
+};

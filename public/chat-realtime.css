@@ -1,0 +1,8 @@
+.channel-unread{margin-left:auto;min-width:19px;height:19px;display:inline-grid;place-items:center;padding:0 6px;border-radius:10px;background:#f23f43;color:#fff;font-size:10px;font-weight:800;box-shadow:0 3px 9px #0005;animation:unread-pop .18s ease-out}
+.chat-typing{height:20px;min-height:20px;padding:1px 22px 3px;background:linear-gradient(90deg,transparent,#5865f20c,transparent);color:#b8becb;font-style:normal;letter-spacing:.01em;transition:opacity .18s ease}
+.chat-typing:empty{opacity:0}
+.message.is-mention{margin:2px -8px;padding:7px 8px;border-left:3px solid #f0b232;border-radius:3px;background:#f0b23218}
+.message.is-mention:hover{background:#f0b23224}
+.message.is-mention .message-text{color:#f5f6f8}
+@keyframes unread-pop{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.channel-unread{animation:none}}
