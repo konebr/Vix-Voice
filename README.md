@@ -52,6 +52,12 @@ Clique na seta ao lado do nome do servidor para abrir as configurações. Donos 
 
 Cada canal de voz é uma sala isolada: participantes, áudio, câmera e transmissão de tela só são enviados para pessoas que estiverem no mesmo canal.
 
+## Aplicativo desktop e atualizações
+
+O cliente Electron abre diretamente `https://app.vix-voice.com.br/app/` e mantém a sessão do usuário. A versão instalada verifica atualizações 12 segundos após iniciar e novamente a cada quatro horas. Também é possível usar **Verificar atualizações** no menu do ícone da bandeja. Quando o download termina, o aplicativo oferece reiniciar e instalar a nova versão.
+
+Para gerar uma versão do Windows, atualize o campo `version` e execute `npm run dist:win`. O diretório `dist` produzirá o instalador NSIS, o arquivo `.blockmap` para download diferencial e o manifesto do canal beta. Publique os três arquivos em `https://app.vix-voice.com.br/download/`; o instalador mais recente também deve ser disponibilizado como `Vix-Voice-Setup.exe` para manter o botão de download do site funcionando.
+
 ## Executar localmente
 
 Com Node.js 22 instalado:

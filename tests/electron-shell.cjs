@@ -13,5 +13,9 @@ assert.match(source, /setDisplayMediaRequestHandler/, 'o compartilhamento de tel
 assert.match(source, /requestSingleInstanceLock/, 'somente uma instância deve executar por vez');
 assert.match(source, /new Tray\(/, 'o aplicativo deve continuar disponível na bandeja');
 assert.match(source, /wasHidden[\s\S]*reloadIgnoringCache/, 'reabrir uma janela oculta deve buscar a versão mais recente');
+assert.match(source, /electron-updater/, 'o aplicativo instalado deve usar o atualizador do electron-builder');
+assert.match(source, /checkForUpdates/, 'o aplicativo deve verificar novas versões');
+assert.match(source, /update-downloaded/, 'o usuário deve ser avisado quando a atualização estiver pronta');
+assert.match(source, /quitAndInstall/, 'uma atualização pronta deve poder ser instalada pelo aplicativo');
 
 console.log('electron shell: ok');

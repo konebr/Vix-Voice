@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, session, Menu, Tray, nativeImage, desktopCapturer } = require('electron');
+const { app, BrowserWindow, shell, session, Menu, Tray, nativeImage, desktopCapturer, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const APP_URL = process.env.VIX_APP_URL || 'https://app.vix-voice.com.br/app/';
@@ -7,6 +8,8 @@ const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 let mainWindow = null;
 let tray = null;
 let quitting = false;
+let updateCheckRunning = false;
+let updateReady = false;
 
 function trusted(url) {
   try { return new URL(url).origin === APP_ORIGIN; } catch { return false; }
@@ -19,6 +22,37 @@ function showMainWindow() {
   if (wasHidden) mainWindow.webContents.reloadIgnoringCache();
   mainWindow.show();
   mainWindow.focus();
+}
+
+async function checkForUpdates(manual = false) {
+  if (!app.isPackaged) {
+    if (manual) await dialog.showMessageBox(mainWindow, { type: 'info', title: 'Atualizações do Vix Voice', message: 'A verificação automática funciona na versão instalada.', detail: `Versão de desenvolvimento: ${app.getVersion()}` });
+    return;
+  }
+  if (updateCheckRunning || updateReady) return;
+  updateCheckRunning = true;
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (manual && result?.updateInfo?.version === app.getVersion()) await dialog.showMessageBox(mainWindow, { type: 'info', title: 'Vix Voice atualizado', message: 'Você já está usando a versão mais recente.', detail: `Versão ${app.getVersion()}` });
+  } catch (error) {
+    console.error('Falha ao verificar atualização:', error);
+    if (manual) await dialog.showMessageBox(mainWindow, { type: 'error', title: 'Atualização indisponível', message: 'Não foi possível verificar atualizações agora.', detail: 'Tente novamente em alguns minutos.' });
+  } finally { updateCheckRunning = false; }
+}
+
+function configureAutoUpdates() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('download-progress', progress => mainWindow?.setProgressBar(Math.max(0, Math.min(1, progress.percent / 100))));
+  autoUpdater.on('update-not-available', () => mainWindow?.setProgressBar(-1));
+  autoUpdater.on('error', error => { mainWindow?.setProgressBar(-1); console.error('Atualizador do Vix Voice:', error); });
+  autoUpdater.on('update-downloaded', async info => {
+    if (updateReady) return; updateReady = true; mainWindow?.setProgressBar(-1);
+    const result = await dialog.showMessageBox(mainWindow, { type: 'info', title: 'Atualização pronta', message: `Vix Voice ${info.version} está pronto para instalar.`, detail: 'O aplicativo será reaberto automaticamente.', buttons: ['Reiniciar e atualizar', 'Depois'], defaultId: 0, cancelId: 1 });
+    if (result.response === 0) { quitting = true; autoUpdater.quitAndInstall(false, true); }
+  });
+  setTimeout(() => checkForUpdates(false), 12000);
+  setInterval(() => checkForUpdates(false), 4 * 60 * 60 * 1000);
 }
 
 function createWindow() {
@@ -85,6 +119,7 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Abrir Vix Voice', click: showMainWindow },
     { label: 'Recarregar', click: () => mainWindow?.webContents.reloadIgnoringCache() },
+    { label: 'Verificar atualizações', click: () => checkForUpdates(true) },
     { type: 'separator' },
     { label: 'Sair', click: () => { quitting = true; app.quit(); } }
   ]));
@@ -100,6 +135,7 @@ else {
     Menu.setApplicationMenu(null);
     createWindow();
     createTray();
+    configureAutoUpdates();
     app.on('activate', showMainWindow);
   });
   app.on('before-quit', () => { quitting = true; });
