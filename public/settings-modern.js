@@ -26,6 +26,7 @@
 
   window.vixNotify = (title, options = {}, kind = 'message') => {
     const prefs = notificationPrefs(), allowed = kind === 'call' ? prefs.callNotifications : kind === 'mention' ? prefs.mentionNotifications : prefs.messageNotifications;
+    if (window.vixPresence?.effective?.() === 'dnd') return;
     if (!allowed || !prefs.desktopNotifications || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     if (!document.hidden && kind !== 'call') return;
     const notice = new Notification(title, { icon: state.identity?.avatar || '/favicon.ico', silent: !prefs.notificationSound, ...options });

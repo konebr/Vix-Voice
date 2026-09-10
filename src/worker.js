@@ -512,3 +512,46 @@ Servers.prototype.fetch=async function(request){
   }
   return realtimeChatFetch.call(this,request);
 };
+
+// Presença profissional: status escolhido, ausência automática e modo invisível.
+const presenceUsersFetch=Users.prototype.fetch;
+const PRESENCE_STATES=new Set(['online','idle','dnd','invisible']);
+Users.prototype.fetch=async function(request){
+  const url=new URL(request.url);
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_presence_preferences(user_id TEXT PRIMARY KEY,status TEXT,updated INTEGER)');
+  if(url.pathname==='/api/profile/presence'){
+    const token=request.headers.get('Authorization')?.replace('Bearer ','')||url.searchParams.get('token')||'',user=one(this.c.storage.sql.exec('SELECT users.id FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires_at>?',token,Date.now()));
+    if(!user)return j({error:'Não autenticado'},401);
+    const saved=one(this.c.storage.sql.exec('SELECT status,updated FROM user_presence_preferences WHERE user_id=?',user.id))||{status:'online',updated:0};
+    if(request.method==='GET')return j({presence:{status:PRESENCE_STATES.has(saved.status)?saved.status:'online',updated:saved.updated||0}});
+    if(request.method!=='PATCH')return j({error:'Método inválido'},405);
+    const body=await request.json().catch(()=>({})),status=String(body.status||'');
+    if(!PRESENCE_STATES.has(status))return j({error:'Status inválido.'},400);
+    const updated=Date.now();this.c.storage.sql.exec('INSERT OR REPLACE INTO user_presence_preferences VALUES(?,?,?)',user.id,status,updated);
+    return j({presence:{status,updated}});
+  }
+  const response=await presenceUsersFetch.call(this,request);
+  if(url.pathname==='/api/private/home'&&request.method==='GET'&&response.ok){
+    const data=await response.json();
+    data.friends=(data.friends||[]).map(friend=>{const saved=one(this.c.storage.sql.exec('SELECT status FROM user_presence_preferences WHERE user_id=?',friend.id)),status=PRESENCE_STATES.has(saved?.status)?saved.status:'online',visible=friend.online&&status!=='invisible';return{...friend,online:visible,presence_status:visible?status:'offline'}});
+    return j(data);
+  }
+  return response;
+};
+
+const presenceServersFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)\/members$/);
+  if(!match)return presenceServersFetch.call(this,request);
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_presence_status(server_id TEXT,user_id TEXT,status TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');
+  if(request.method==='POST'){
+    const body=await request.clone().json().catch(()=>({})),response=await presenceServersFetch.call(this,request);
+    if(response.ok&&PRESENCE_STATES.has(body.presence_status)){const user=await this.user(request);if(user)this.c.storage.sql.exec('INSERT OR REPLACE INTO member_presence_status VALUES(?,?,?,?)',match[1],user.id,body.presence_status,Date.now())}
+    return response;
+  }
+  const response=await presenceServersFetch.call(this,request);
+  if(request.method!=='GET'||!response.ok)return response;
+  const data=await response.json(),viewer=await this.user(request),now=Date.now();
+  data.members=(data.members||[]).map(member=>{const saved=one(this.c.storage.sql.exec('SELECT status FROM member_presence_status WHERE server_id=? AND user_id=?',match[1],member.user_id)),fresh=now-Number(member.last_seen||0)<65000,selected=PRESENCE_STATES.has(saved?.status)?saved.status:'online',status=fresh?selected:'offline',visible=status!=='invisible'||member.user_id===viewer?.id;return{...member,presence_status:visible?status:'offline',online:Number(fresh&&selected!=='invisible')}});
+  return j(data);
+};
