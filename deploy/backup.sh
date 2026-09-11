@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APP_DIR="${VIX_APP_DIR:-/home/ubuntu/vix-voice}"
-STATE_DIR="$APP_DIR/.wrangler/state"
+APP_DIR="${VIX_APP_DIR:-/opt/vix-voice/app}"
+STATE_DIR="${VIX_STATE_DIR:-$APP_DIR/.wrangler/state}"
 BACKUP_DIR="${VIX_BACKUP_DIR:-/var/backups/vix-voice}"
 SERVICE="${VIX_SERVICE:-vix-voice.service}"
 KEEP="${VIX_BACKUP_KEEP:-7}"
@@ -31,7 +31,13 @@ if systemctl is-active --quiet "$SERVICE"; then
 fi
 
 sync
-tar -C "$APP_DIR" -czf "$PARTIAL" .wrangler/state
+# Os rastros do Miniflare crescem continuamente e não fazem parte do banco.
+# Excluí-los mantém os backups pequenos sem remover contas, servidores ou mensagens.
+STATE_PARENT="$(dirname "$STATE_DIR")"
+STATE_NAME="$(basename "$STATE_DIR")"
+tar -C "$STATE_PARENT" \
+  --exclude="$STATE_NAME/v3/observability" \
+  -czf "$PARTIAL" "$STATE_NAME"
 tar -tzf "$PARTIAL" >/dev/null
 mv -- "$PARTIAL" "$ARCHIVE"
 chmod 600 "$ARCHIVE"

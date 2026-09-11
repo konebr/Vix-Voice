@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup externo diário do Vix Voice
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+Unit=vix-voice-offsite.service
+
+[Install]
+WantedBy=timers.target

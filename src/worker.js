@@ -594,3 +594,18 @@ Users.prototype.fetch=async function(request){
   }
   return secureUsersFetch.call(this,request);
 };
+
+// Métricas agregadas para o monitor local. Não expõe usuários, canais ou conteúdo.
+const infrastructureServersFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url);
+  if(url.pathname!=='/api/servers/_infra/metrics'||request.method!=='GET')return infrastructureServersFetch.call(this,request);
+  const connections=new Set(),rooms=new Set(),now=Date.now();
+  for(const [serverId,peers] of this.voiceSockets||[]){
+    for(const peer of peers||[])if(peer.joined&&peer.socket?.readyState===1){connections.add(`${serverId}:${peer.user.id}`);rooms.add(`${serverId}:${peer.channel||'Geral'}`)}
+  }
+  for(const [serverId,peers] of this.voicePollRooms||[]){
+    for(const peer of peers?.values?.()||[])if(peer.joined&&now-Number(peer.updated||0)<=15000){connections.add(`${serverId}:${peer.user.id}`);rooms.add(`${serverId}:${peer.channel||'Geral'}`)}
+  }
+  return new Response(JSON.stringify({voiceConnections:connections.size,voiceRooms:rooms.size}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+};

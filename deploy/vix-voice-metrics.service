@@ -1,0 +1,10 @@
+[Unit]
+Description=Coleta de métricas do Vix Voice
+After=vix-voice.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vix-voice-metrics
+Nice=10
+UMask=0027
+TimeoutStartSec=30s

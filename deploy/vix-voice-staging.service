@@ -1,0 +1,16 @@
+[Unit]
+Description=Vix Voice Homologação
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vixvoice
+WorkingDirectory=/opt/vix-voice/staging
+Environment=WRANGLER_SEND_METRICS=false
+ExecStart=/usr/bin/wrangler dev --no-bundle --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8788 --persist-to /var/lib/vix-voice-staging/state --log-level error
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

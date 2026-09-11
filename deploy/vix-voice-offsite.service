@@ -1,0 +1,13 @@
+[Unit]
+Description=Sincronização externa dos backups do Vix Voice
+After=network-online.target vix-voice-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/vix-voice/offsite.env
+ExecStart=/usr/local/sbin/vix-voice-offsite-backup
+Nice=10
+IOSchedulingClass=idle
+UMask=0077
+TimeoutStartSec=10min

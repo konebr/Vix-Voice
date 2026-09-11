@@ -1,0 +1,11 @@
+[Unit]
+Description=Métricas por minuto do Vix Voice
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=vix-voice-metrics.service
+
+[Install]
+WantedBy=timers.target
