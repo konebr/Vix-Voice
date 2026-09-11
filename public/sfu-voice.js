@@ -15,7 +15,13 @@
   let presenceTimer = null;
   let publishedMicrophoneTrack = null;
   let microphoneSourceTrack = null;
+  let screenVideoPublication = null;
+  let screenAudioPublication = null;
+  let publishedScreenVideoTrack = null;
+  let publishedScreenAudioTrack = null;
+  let mediaSyncing = false;
   const remoteAudio = new Map();
+  const remoteScreen = new Map();
 
   const participantId = participant => String(participant?.identity || '');
   const participantName = participant => participant?.name || participantId(participant) || 'Usuário';
@@ -38,18 +44,38 @@
       for (const element of track.detach()) element.remove();
       remoteAudio.delete(sid);
     }
+    for (const [sid, item] of remoteScreen) {
+      if (item.track !== track) continue;
+      for (const element of track.detach()) element.remove();
+      remoteScreen.delete(sid);
+    }
   }
 
   function attachRemoteTrack(track, publicationInfo, participant) {
-    if (track.kind !== LK.Track.Kind.Audio || publicationInfo.source === LK.Track.Source.ScreenShareAudio) return;
+    if (track.kind === LK.Track.Kind.Video && publicationInfo.source === LK.Track.Source.ScreenShare) {
+      const video = track.attach();
+      video.autoplay = true;
+      video.playsInline = true;
+      video.controls = true;
+      video.title = `Transmissão de ${participantName(participant)}`;
+      video.style.cssText = 'position:fixed;inset:90px 260px 90px 350px;width:calc(100vw - 610px);height:calc(100vh - 180px);object-fit:contain;background:#080a0f;border:1px solid #343746;border-radius:14px;z-index:25;box-shadow:0 18px 60px #000b';
+      document.body.append(video);
+      video.play().catch(() => {});
+      remoteScreen.set(publicationInfo.trackSid, { track, video, participant });
+      return;
+    }
+    if (track.kind !== LK.Track.Kind.Audio) return;
     const audio = track.attach();
     audio.autoplay = true;
     audio.hidden = true;
     audio.dataset.sfuParticipant = participantId(participant);
-    setAudioPreferences(participantId(participant), audio);
+    if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) {
+      audio.volume = Math.max(0, Math.min(1, Number(readSettings().outputVolume ?? 100) / 100));
+      audio.muted = deafened;
+    } else setAudioPreferences(participantId(participant), audio);
     document.body.append(audio);
     audio.play().catch(() => {});
-    remoteAudio.set(publicationInfo.trackSid, { track, audio, participant });
+    remoteAudio.set(publicationInfo.trackSid, { track, audio, participant, screen: publicationInfo.source === LK.Track.Source.ScreenShareAudio });
   }
 
   function clearRemoteAudio() {
@@ -57,6 +83,8 @@
       for (const element of item.track.detach()) element.remove();
     }
     remoteAudio.clear();
+    for (const item of remoteScreen.values()) for (const element of item.track.detach()) element.remove();
+    remoteScreen.clear();
   }
 
   function markActiveSpeakers(speakers) {
@@ -65,13 +93,15 @@
       const id = participantId(item.participant), speaking = active.has(id);
       item.audio.dataset.speaking = String(speaking);
       const settings = readSettings(), prefs = participantPreferences(id);
-      item.audio.muted = deafened || Boolean(prefs.muted) || (settings.voiceActivatedOutput !== false && !speaking);
+      item.audio.muted = deafened || (!item.screen && (Boolean(prefs.muted) || (settings.voiceActivatedOutput !== false && !speaking)));
     }
     for (const row of document.querySelectorAll('.voice-user[data-voice-user-id]')) row.dataset.speaking = String(active.has(row.dataset.voiceUserId));
   }
 
   async function syncPublishedMedia() {
-    if (!room || room.state !== LK.ConnectionState.Connected) return;
+    if (!room || room.state !== LK.ConnectionState.Connected || mediaSyncing) return;
+    mediaSyncing = true;
+    try {
     const source = microphoneStream?.getAudioTracks?.()[0] || null;
     if (source && source !== microphoneSourceTrack) {
       microphoneSourceTrack = source;
@@ -82,17 +112,30 @@
       await applyMicrophoneVolume(readSettings().inputVolume ?? 100);
     }
     const next = micGainStream?.getAudioTracks?.()[0] || source;
-    if (!next || next === publishedMicrophoneTrack) return;
-    const enabled = microphoneStream?.getAudioTracks?.()[0]?.enabled !== false;
-    if (publication?.track) await room.localParticipant.unpublishTrack(publication.track, false).catch(() => {});
-    publication = await room.localParticipant.publishTrack(next, {
-      source: LK.Track.Source.Microphone,
-      dtx: true,
-      red: true,
-      audioPreset: LK.AudioPresets?.music
-    });
-    publishedMicrophoneTrack = next;
-    if (!enabled) await publication.mute();
+    if (next && next !== publishedMicrophoneTrack) {
+      const enabled = microphoneStream?.getAudioTracks?.()[0]?.enabled !== false;
+      if (publication?.track) await room.localParticipant.unpublishTrack(publication.track, false).catch(() => {});
+      publication = await room.localParticipant.publishTrack(next, { source: LK.Track.Source.Microphone, dtx: true, red: true, audioPreset: LK.AudioPresets?.music });
+      publishedMicrophoneTrack = next;
+      if (!enabled) await publication.mute();
+    }
+    const nextScreenVideo = screenStream?.getVideoTracks?.().find(track => track.readyState === 'live') || null;
+    const nextScreenAudio = screenStream?.getAudioTracks?.().find(track => track.readyState === 'live') || null;
+    let screenChanged = false;
+    if (nextScreenVideo !== publishedScreenVideoTrack) {
+      if (screenVideoPublication?.track) await room.localParticipant.unpublishTrack(screenVideoPublication.track, false).catch(() => {});
+      screenVideoPublication = nextScreenVideo ? await room.localParticipant.publishTrack(nextScreenVideo, { source: LK.Track.Source.ScreenShare, simulcast: true }) : null;
+      publishedScreenVideoTrack = nextScreenVideo;
+      screenChanged = true;
+    }
+    if (nextScreenAudio !== publishedScreenAudioTrack) {
+      if (screenAudioPublication?.track) await room.localParticipant.unpublishTrack(screenAudioPublication.track, false).catch(() => {});
+      screenAudioPublication = nextScreenAudio ? await room.localParticipant.publishTrack(nextScreenAudio, { source: LK.Track.Source.ScreenShareAudio, dtx: false, red: true }) : null;
+      publishedScreenAudioTrack = nextScreenAudio;
+      screenChanged = true;
+    }
+    if (screenChanged) setConnectionUi(true);
+    } finally { mediaSyncing = false; }
   }
 
   function setConnectionUi(connected, phase = connected ? 'connected' : 'connecting') {
@@ -127,6 +170,11 @@
     publication = null;
     publishedMicrophoneTrack = null;
     microphoneSourceTrack = null;
+    screenVideoPublication = null;
+    screenAudioPublication = null;
+    publishedScreenVideoTrack = null;
+    publishedScreenAudioTrack = null;
+    mediaSyncing = false;
     await micGainContext?.close().catch(() => {});
     micGainContext = null;
     micGainNode = null;
@@ -194,7 +242,12 @@
       }, 10000);
       mediaSyncTimer = setInterval(() => {
         syncPublishedMedia().catch(error => console.warn('Falha ao atualizar microfone no SFU', error));
-        for (const item of remoteAudio.values()) setAudioPreferences(participantId(item.participant), item.audio);
+        for (const item of remoteAudio.values()) {
+          if (item.screen) {
+            item.audio.volume = Math.max(0, Math.min(1, Number(readSettings().outputVolume ?? 100) / 100));
+            item.audio.muted = deafened;
+          } else setAudioPreferences(participantId(item.participant), item.audio);
+        }
       }, 500);
     } catch (error) {
       if (run === generation) {
