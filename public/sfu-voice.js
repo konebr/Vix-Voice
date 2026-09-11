@@ -211,7 +211,9 @@
   pollVoiceSignal = () => {};
 
   $('voice-channel').onclick = startVoice;
-  $('leave').onclick = () => stopVoice();
+  // The footer gear belongs to account settings. Voice disconnection is handled
+  // by the dedicated "Sair da voz" control rendered inside the call panel.
+  $('leave').onclick = () => openUserSettings();
   addEventListener('beforeunload', () => { desired = false; room?.disconnect(); });
   addEventListener('online', () => { if (desired && !room) connectSfu().catch(() => {}); });
 })();
