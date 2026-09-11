@@ -42,7 +42,8 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "livekit-client": "^2.22.3"
   },
   "devDependencies": {
     "electron": "^39.2.7",

@@ -1,4 +1,13 @@
 app.vix-voice.com.br {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:8787
+    handle /rtc* {
+        reverse_proxy 127.0.0.1:7880
+    }
+    handle_path /download/* {
+        root * /var/www/vix-voice-downloads
+        file_server
+    }
+    handle {
+        reverse_proxy 127.0.0.1:8787
+    }
 }

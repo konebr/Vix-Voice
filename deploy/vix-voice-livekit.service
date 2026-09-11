@@ -1,0 +1,21 @@
+[Unit]
+Description=Vix Voice LiveKit SFU
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=livekit
+Group=livekit
+ExecStart=/usr/local/bin/livekit-server --config /etc/livekit.yaml
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/livekit.yaml
+
+[Install]
+WantedBy=multi-user.target

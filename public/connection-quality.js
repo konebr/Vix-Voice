@@ -35,7 +35,7 @@
         <div><small>PERDA</small><strong>${metricValue(latest.loss, '%')}</strong></div>
       </div>
       <div class="connection-route"><span>Rota</span><strong>${latest.route}</strong></div>
-      <p>${latest.peers ? `${latest.peers} conexão${latest.peers > 1 ? 'ões' : ''} WebRTC ativa${latest.peers > 1 ? 's' : ''}.` : 'Latência medida até o servidor de voz.'}</p>`;
+      <p>${latest.route === 'SFU da VPS' ? 'Áudio enviado uma vez à VPS e distribuído pelo servidor.' : latest.peers ? `${latest.peers} conexão${latest.peers > 1 ? 'ões' : ''} WebRTC ativa${latest.peers > 1 ? 's' : ''}.` : 'Latência medida até o servidor de voz.'}</p>`;
     panel.append(details);
   }
 
@@ -114,11 +114,11 @@
     if (measuring || !microphoneStream || !voiceRoomConnected) return;
     measuring = true;
     try {
-      const rtc = await peerMetrics();
+      const rtc = globalThis.vixVoiceTransport === 'sfu' ? null : await peerMetrics();
       const rawLatency = Number.isFinite(rtc?.latency) ? rtc.latency : await serverRoundTripTime();
       samples.push(rawLatency);
       if (samples.length > 5) samples.shift();
-      paintPing({ latency: median(samples), jitter: rtc?.jitter ?? null, loss: rtc?.loss ?? null, route: rtc?.route || 'Servidor', peers: rtc?.peers || 0 });
+      paintPing({ latency: median(samples), jitter: rtc?.jitter ?? null, loss: rtc?.loss ?? null, route: globalThis.vixVoiceTransport === 'sfu' ? 'SFU da VPS' : rtc?.route || 'Servidor', peers: rtc?.peers || 0 });
     } catch (error) {
       console.warn('Não foi possível medir a qualidade da chamada', error);
       paintPing({ latency: null });

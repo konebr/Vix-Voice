@@ -516,6 +516,34 @@ Servers.prototype.fetch=async function(request){
   return realtimeChatFetch.call(this,request);
 };
 
+// Tokens curtos para o SFU próprio. A chave nunca é enviada ao cliente.
+const sfuFetch=Servers.prototype.fetch;
+const sfuBase64Url=value=>b64(value instanceof Uint8Array?value:E.encode(value)).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
+async function signSfuToken(apiKey,apiSecret,claims){
+  const header=sfuBase64Url(JSON.stringify({alg:'HS256',typ:'JWT'})),payload=sfuBase64Url(JSON.stringify(claims));
+  const key=await crypto.subtle.importKey('raw',E.encode(apiSecret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const signature=await crypto.subtle.sign('HMAC',key,E.encode(`${header}.${payload}`));
+  return `${header}.${payload}.${sfuBase64Url(new Uint8Array(signature))}`;
+}
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)\/sfu-token$/);
+  if(!match)return sfuFetch.call(this,request);
+  if(request.method!=='POST')return j({error:'Metodo invalido.'},405);
+  const user=await this.user(request),serverId=match[1];
+  if(!user)return j({error:'Nao autenticado'},401);
+  if(!this.member(serverId,user)||!this.can(serverId,user,'CONNECT_VOICE'))return j({error:'Sem permissao para conectar a voz.'},403);
+  const body=await request.json().catch(()=>({})),channel=String(body.channel||'').slice(0,64);
+  if(!channel||!one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? AND id=?',serverId,channel)))return j({error:'Canal de voz nao encontrado.'},404);
+  if(!this.canInChannel(serverId,user,'CONNECT_VOICE','voice',channel))return j({error:'Seu cargo nao pode entrar neste canal de voz.'},403);
+  const sanctions=this.activeSanctions(serverId,user.id);
+  if(sanctions.some(item=>['block','timeout','mute'].includes(item.type)))return j({error:'Voce nao pode entrar na voz durante esta restricao.'},403);
+  const apiKey=String(this.env.LIVEKIT_API_KEY||''),apiSecret=String(this.env.LIVEKIT_API_SECRET||''),endpoint=String(this.env.LIVEKIT_URL||'');
+  if(apiKey.length<8||apiSecret.length<32||!/^wss:\/\//i.test(endpoint))return j({error:'Servidor SFU ainda nao configurado.'},503);
+  const now=Math.floor(Date.now()/1000),room=`server:${serverId}:voice:${channel}`;
+  const token=await signSfuToken(apiKey,apiSecret,{iss:apiKey,sub:user.id,name:user.name,nbf:now-5,exp:now+7200,metadata:JSON.stringify({color:user.color||'#5865f2'}),video:{roomJoin:true,room,canPublish:true,canSubscribe:true,canPublishData:false}});
+  return j({url:endpoint,token,room,participant:{id:user.id,name:user.name,color:user.color||'#5865f2'}});
+};
+
 // Presença profissional: status escolhido, ausência automática e modo invisível.
 const presenceUsersFetch=Users.prototype.fetch;
 const PRESENCE_STATES=new Set(['online','idle','dnd','invisible']);
