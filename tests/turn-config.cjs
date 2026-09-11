@@ -11,3 +11,16 @@ test('TURN uses the current Metered credentials endpoint and validates relay ser
   assert.doesNotMatch(source, /\/api\/v1\/turn\/credential\?secretKey=/);
   assert.match(source, /startsWith\('turn'\)/);
 });
+
+test('voice and private calls use the self-hosted TURN as mandatory relay', () => {
+  const worker = fs.readFileSync('src/worker.js', 'utf8');
+  const app = fs.readFileSync('public/app.js', 'utf8');
+  const privateCalls = fs.readFileSync('public/private.js', 'utf8');
+  assert.match(worker, /TURN_SECRET/);
+  assert.match(worker, /hash:'SHA-1'/);
+  assert.match(worker, /turn:\$\{host\}:3478\?transport=udp/);
+  assert.match(app, /iceTransportPolicy:'relay'/);
+  assert.match(app, /api\('\/api\/servers\/_turn'\)/);
+  assert.match(privateCalls, /iceTransportPolicy:'relay'/);
+  assert.doesNotMatch(privateCalls, /stun\.l\.google\.com/);
+});

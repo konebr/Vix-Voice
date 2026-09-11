@@ -1,0 +1,15 @@
+listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=ALTERE_PARA_UM_SEGREDO_ALEATORIO
+realm=vix-voice.com.br
+external-ip=143.20.50.44
+min-port=49160
+max-port=49260
+no-cli
+no-loopback-peers
+no-multicast-peers
+stale-nonce=600
+total-quota=200
+user-quota=8
+max-bps=2000000

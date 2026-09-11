@@ -46,7 +46,9 @@ const PERMISSION_DEFINITIONS=[
   ['VIEW_CHANNELS',1,'Ver canais'],['SEND_MESSAGES',2,'Enviar mensagens'],['CONNECT_VOICE',4,'Conectar à voz'],
   ['MANAGE_SERVER',8,'Gerenciar servidor'],['MANAGE_CHANNELS',16,'Gerenciar canais'],['MANAGE_ROLES',32,'Gerenciar cargos'],
   ['KICK_MEMBERS',64,'Expulsar membros'],['BAN_MEMBERS',128,'Banir membros'],['CREATE_INVITES',256,'Criar convites'],
-  ['MANAGE_MESSAGES',512,'Gerenciar mensagens'],['ADMINISTRATOR',1024,'Administrador']
+  ['MANAGE_MESSAGES',512,'Gerenciar mensagens'],['ADMINISTRATOR',1024,'Administrador'],
+  ['MODERATE_MEMBERS',2048,'Aplicar timeout e silenciamento'],['APPROVE_MEMBERS',4096,'Aprovar novos membros'],
+  ['MANAGE_CHANNEL_PERMISSIONS',8192,'Definir permissões por canal']
 ];
 const PERMISSIONS=Object.fromEntries(PERMISSION_DEFINITIONS.map(([key,value])=>[key,value])),ALL_PERMISSIONS=PERMISSION_DEFINITIONS.reduce((mask,[,value])=>mask|value,0);
 const permissionMask=values=>Array.isArray(values)?values.reduce((mask,key)=>mask|(PERMISSIONS[key]||0),0):Math.max(0,Number(values)||0)&ALL_PERMISSIONS;
@@ -60,6 +62,7 @@ Servers.prototype.ensureRoleSystem=function(serverId){
   const defaults=[['owner','Criador','#f4c45c',0,ALL_PERMISSIONS],['admin','Administrador','#a9a7ff',10,ALL_PERMISSIONS],['member','Membro','#747d90',100,PERMISSIONS.VIEW_CHANNELS|PERMISSIONS.SEND_MESSAGES|PERMISSIONS.CONNECT_VOICE|PERMISSIONS.CREATE_INVITES]];
   for(const [suffix,name,color,position,permissions] of defaults)this.c.storage.sql.exec('INSERT OR IGNORE INTO server_roles VALUES(?,?,?,?,?,?,1)',`${serverId}-${suffix}`,serverId,name,color,position,permissions);
   this.c.storage.sql.exec('UPDATE server_roles SET name=?,position=0,permissions=? WHERE id=?','Criador',ALL_PERMISSIONS,`${serverId}-owner`);
+  this.c.storage.sql.exec('UPDATE server_roles SET permissions=? WHERE id=?',ALL_PERMISSIONS,`${serverId}-admin`);
   for(const member of this.c.storage.sql.exec('SELECT user_id,role FROM members WHERE server_id=?',serverId)){const suffix=member.role==='Dono'?'owner':member.role==='Admin'?'admin':'member';this.c.storage.sql.exec('INSERT OR IGNORE INTO member_roles VALUES(?,?,?)',serverId,member.user_id,`${serverId}-${suffix}`)}
 };
 Servers.prototype.roleFor=function(serverId,userId){this.ensureRoleSystem(serverId);return one(this.c.storage.sql.exec('SELECT server_roles.* FROM member_roles JOIN server_roles ON server_roles.id=member_roles.role_id WHERE member_roles.server_id=? AND member_roles.user_id=?',serverId,userId))};
@@ -608,4 +611,120 @@ Servers.prototype.fetch=async function(request){
     for(const peer of peers?.values?.()||[])if(peer.joined&&now-Number(peer.updated||0)<=15000){connections.add(`${serverId}:${peer.user.id}`);rooms.add(`${serverId}:${peer.channel||'Geral'}`)}
   }
   return new Response(JSON.stringify({voiceConnections:connections.size,voiceRooms:rooms.size}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+};
+
+// Administração avançada: acessos por canal, fila de entrada, sanções e proteção contra spam.
+const advancedAdministrationFetch=Servers.prototype.fetch;
+const CHANNEL_PERMISSION_KEYS={text:['VIEW_CHANNELS','SEND_MESSAGES'],voice:['VIEW_CHANNELS','CONNECT_VOICE']};
+Servers.prototype.ensureAdvancedAdministration=function(serverId){
+  this.ensureRoleSystem(serverId);
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS channel_permissions(server_id TEXT,channel_type TEXT,channel_id TEXT,role_id TEXT,allow_mask INTEGER,deny_mask INTEGER,PRIMARY KEY(server_id,channel_type,channel_id,role_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_sanctions(server_id TEXT,user_id TEXT,type TEXT,until_at INTEGER,reason TEXT,created_by TEXT,created INTEGER,PRIMARY KEY(server_id,user_id,type))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS membership_requests(id TEXT PRIMARY KEY,server_id TEXT,user_id TEXT,name TEXT,color TEXT,invite_code TEXT,created INTEGER,UNIQUE(server_id,user_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_security_settings(server_id TEXT PRIMARY KEY,require_approval INTEGER,anti_spam INTEGER,updated INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS message_rate_limits(server_id TEXT,user_id TEXT,window_started INTEGER,message_count INTEGER,last_text TEXT,duplicate_count INTEGER,blocked_until INTEGER,PRIMARY KEY(server_id,user_id))');
+  this.c.storage.sql.exec('INSERT OR IGNORE INTO server_security_settings VALUES(?,0,1,?)',serverId,Date.now());
+};
+Servers.prototype.channelPermissionMask=function(values,channelType){
+  const allowed=new Set(CHANNEL_PERMISSION_KEYS[channelType]||[]);return Array.isArray(values)?values.reduce((mask,key)=>mask|(allowed.has(key)?PERMISSIONS[key]:0),0):0;
+};
+Servers.prototype.canInChannel=function(serverId,user,permission,channelType,channelId){
+  const server=one(this.c.storage.sql.exec('SELECT owner FROM servers WHERE id=?',serverId));if(server?.owner===user.id)return true;
+  const role=this.roleFor(serverId,user.id),roleMask=Number(role?.permissions||0);if(roleMask&PERMISSIONS.ADMINISTRATOR)return true;
+  let result=Boolean(roleMask&PERMISSIONS[permission]);
+  const override=one(this.c.storage.sql.exec('SELECT allow_mask,deny_mask FROM channel_permissions WHERE server_id=? AND channel_type=? AND channel_id=? AND role_id=?',serverId,channelType,String(channelId),role?.id||'')),bit=PERMISSIONS[permission]||0;
+  if(Number(override?.deny_mask||0)&bit)return false;if(Number(override?.allow_mask||0)&bit)return true;return result;
+};
+Servers.prototype.activeSanctions=function(serverId,userId){
+  const now=Date.now();this.c.storage.sql.exec('DELETE FROM member_sanctions WHERE server_id=? AND until_at>0 AND until_at<=?',serverId,now);return[...this.c.storage.sql.exec('SELECT type,until_at,reason FROM member_sanctions WHERE server_id=? AND user_id=? ORDER BY created DESC',serverId,userId)];
+};
+Servers.prototype.disconnectVoiceMember=function(serverId,userId,reason='Moderação aplicada'){
+  for(const peer of [...(this.voiceSockets?.get(serverId)||[])])if(peer.user.id===userId)peer.socket.close(4003,reason);
+  const room=this.voicePollRooms?.get(serverId);for(const [session,peer] of [...(room?.entries()||[])])if(peer.user.id===userId){room.delete(session);for(const other of room.values())if(other.joined&&other.channel===peer.channel)other.events.push({type:'voice-leave',from:{id:peer.user.id,name:peer.user.name,color:peer.user.color}})}if(room&&!room.size)this.voicePollRooms.delete(serverId);
+  this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND user_id=?',serverId,userId);
+};
+Servers.prototype.messageSafety=function(serverId,user,text){
+  const settings=one(this.c.storage.sql.exec('SELECT anti_spam FROM server_security_settings WHERE server_id=?',serverId));if(!Number(settings?.anti_spam))return null;
+  const clean=String(text||'').trim(),normalized=clean.toLowerCase().replace(/\s+/g,' '),now=Date.now();
+  if(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069]/i.test(clean)||/\b(?:javascript|data):/i.test(clean))return 'A mensagem contém um link ou caractere potencialmente malicioso.';
+  const links=clean.match(/https?:\/\/[^\s]+/gi)||[],blockedHosts=new Set(['bit.ly','tinyurl.com','t.co','is.gd','cutt.ly','rb.gy']);
+  if(links.length>4)return 'A mensagem contém links demais.';
+  for(const link of links)try{if(blockedHosts.has(new URL(link).hostname.toLowerCase()))return 'Encurtadores de link não são permitidos neste servidor.'}catch{return 'O endereço enviado é inválido.'}
+  const saved=one(this.c.storage.sql.exec('SELECT * FROM message_rate_limits WHERE server_id=? AND user_id=?',serverId,user.id));if(Number(saved?.blocked_until||0)>now)return `Aguarde ${Math.ceil((Number(saved.blocked_until)-now)/1000)} segundos antes de enviar outra mensagem.`;
+  const sameWindow=saved&&now-Number(saved.window_started||0)<8000,count=sameWindow?Number(saved.message_count||0)+1:1,started=sameWindow?saved.window_started:now,duplicate=normalized&&normalized===saved?.last_text?Number(saved.duplicate_count||0)+1:1,blocked=count>6||duplicate>3?now+60000:0;
+  this.c.storage.sql.exec('INSERT OR REPLACE INTO message_rate_limits VALUES(?,?,?,?,?,?,?)',serverId,user.id,started,count,normalized.slice(0,240),duplicate,blocked);
+  if(blocked){this.audit(serverId,user,'SPAM_BLOCK',user.id,user.name,count>6?'Muitas mensagens em poucos segundos':'Mensagem repetida');return 'Proteção contra spam ativada. Aguarde 1 minuto.'}return null;
+};
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url);
+  if(url.pathname==='/api/servers/_infra/metrics')return advancedAdministrationFetch.call(this,request);
+  const user=await this.user(request);if(!user)return j({error:'Não autenticado'},401);
+  if(url.pathname==='/api/servers/_turn'&&request.method==='GET'){
+    const host=String(this.env.TURN_HOST||'').trim(),secret=String(this.env.TURN_SECRET||'');if(!/^(?:[a-z0-9.-]+|\[[0-9a-f:]+\])(?::[0-9]{1,5})?$/i.test(host)||secret.length<32)return j({error:'TURN próprio ainda não está configurado.'},503);
+    const username=`${Math.floor(Date.now()/1000)+3600}:${user.id}`,key=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-1'},false,['sign']),signature=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(username)),credential=b64(new Uint8Array(signature));
+    return j([{urls:`turn:${host}:3478?transport=udp`,username,credential},{urls:`turn:${host}:3478?transport=tcp`,username,credential}]);
+  }
+  const join=url.pathname.match(/^\/api\/servers\/join\/([\w-]+)$/);
+  if(join&&request.method==='POST'){
+    this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_invites(code TEXT PRIMARY KEY,server_id TEXT,created_by TEXT,max_uses INTEGER,uses INTEGER,expires INTEGER,revoked INTEGER,created INTEGER)');this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_bans(server_id TEXT,user_id TEXT,name TEXT,reason TEXT,banned_by TEXT,created INTEGER,PRIMARY KEY(server_id,user_id))');
+    const managed=one(this.c.storage.sql.exec('SELECT * FROM server_invites WHERE code=?',join[1])),legacy=managed?null:one(this.c.storage.sql.exec('SELECT id AS server_id FROM servers WHERE invite=?',join[1])),serverId=managed?.server_id||legacy?.server_id;
+    if(!serverId)return advancedAdministrationFetch.call(this,request);this.ensureAdvancedAdministration(serverId);
+    const settings=one(this.c.storage.sql.exec('SELECT require_approval FROM server_security_settings WHERE server_id=?',serverId));if(!Number(settings?.require_approval)||this.member(serverId,user))return advancedAdministrationFetch.call(this,request);
+    if(managed&&(managed.revoked||managed.expires&&managed.expires<Date.now()||managed.max_uses&&managed.uses>=managed.max_uses))return j({error:'Este convite expirou ou não está mais disponível.'},410);
+    if(one(this.c.storage.sql.exec('SELECT user_id FROM server_bans WHERE server_id=? AND user_id=?',serverId,user.id)))return j({error:'Você foi banido deste servidor.'},403);
+    const existing=one(this.c.storage.sql.exec('SELECT id FROM membership_requests WHERE server_id=? AND user_id=?',serverId,user.id));if(existing)return j({id:serverId,pending:true,request_id:existing.id},202);
+    const id=crypto.randomUUID();this.c.storage.sql.exec('INSERT INTO membership_requests VALUES(?,?,?,?,?,?,?)',id,serverId,user.id,user.name,user.color||'#5865f2',join[1],Date.now());if(managed)this.c.storage.sql.exec('UPDATE server_invites SET uses=uses+1 WHERE code=?',join[1]);return j({id:serverId,pending:true,request_id:id},202);
+  }
+  const serverId=url.pathname.match(/^\/api\/servers\/([\w-]+)(?:\/|$)/)?.[1];if(!serverId)return advancedAdministrationFetch.call(this,request);
+  this.ensureAdvancedAdministration(serverId);
+  const server=one(this.c.storage.sql.exec('SELECT * FROM servers WHERE id=?',serverId)),isOwner=server?.owner===user.id,member=this.member(serverId,user),can=permission=>this.can(serverId,user,permission);
+  if(!member)return advancedAdministrationFetch.call(this,request);
+  const managePath=`/api/servers/${serverId}/manage`,settingsPath=`/api/servers/${serverId}/security-settings`,transferPath=`/api/servers/${serverId}/transfer-owner`;
+  if(url.pathname===managePath&&request.method==='GET'){
+    const response=await advancedAdministrationFetch.call(this,request);if(!response.ok)return response;const data=await response.json(),now=Date.now();
+    data.textChannels=[...this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? ORDER BY name',serverId)];data.channelPermissions=[...this.c.storage.sql.exec('SELECT channel_type,channel_id,role_id,allow_mask,deny_mask FROM channel_permissions WHERE server_id=?',serverId)];data.security=one(this.c.storage.sql.exec('SELECT require_approval,anti_spam FROM server_security_settings WHERE server_id=?',serverId));
+    data.capabilities.moderateMembers=can('MODERATE_MEMBERS')||can('BAN_MEMBERS');data.capabilities.approveMembers=can('APPROVE_MEMBERS')||can('MANAGE_SERVER');data.capabilities.manageChannelPermissions=can('MANAGE_CHANNEL_PERMISSIONS')||can('MANAGE_CHANNELS');data.capabilities.transferOwnership=isOwner;
+    data.pendingMembers=data.capabilities.approveMembers?[...this.c.storage.sql.exec('SELECT id,user_id,name,color,created FROM membership_requests WHERE server_id=? ORDER BY created',serverId)]:[];
+    data.members=(data.members||[]).map(item=>({...item,sanctions:[...this.c.storage.sql.exec('SELECT type,until_at,reason FROM member_sanctions WHERE server_id=? AND user_id=? AND (until_at=0 OR until_at>?) ORDER BY created DESC',serverId,item.user_id,now)]}));return j(data);
+  }
+  if(url.pathname===settingsPath&&request.method==='PATCH'){
+    if(!can('MANAGE_SERVER'))return j({error:'Sem permissão para alterar a segurança do servidor.'},403);const body=await request.json().catch(()=>({})),approval=body.require_approval?1:0,antiSpam=body.anti_spam===false?0:1;this.c.storage.sql.exec('INSERT OR REPLACE INTO server_security_settings VALUES(?,?,?,?)',serverId,approval,antiSpam,Date.now());this.audit(serverId,user,'SECURITY_SETTINGS',serverId,server.name,`Aprovação: ${approval?'ativa':'desativada'} · Antispam: ${antiSpam?'ativo':'desativado'}`);return j({security:{require_approval:approval,anti_spam:antiSpam}});
+  }
+  if(url.pathname===`/api/servers/${serverId}/channel-permissions`&&request.method==='PATCH'){
+    if(!can('MANAGE_CHANNEL_PERMISSIONS')&&!can('MANAGE_CHANNELS'))return j({error:'Sem permissão para configurar os canais.'},403);const body=await request.json().catch(()=>({})),type=String(body.channel_type||''),channelId=String(body.channel_id||'').slice(0,64),roleId=String(body.role_id||'');if(!CHANNEL_PERMISSION_KEYS[type])return j({error:'Tipo de canal inválido.'},400);
+    const role=one(this.c.storage.sql.exec('SELECT id,name FROM server_roles WHERE server_id=? AND id=?',serverId,roleId)),exists=type==='text'?one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,channelId)):one(this.c.storage.sql.exec('SELECT id FROM voice_channels WHERE server_id=? AND id=?',serverId,channelId));if(!role||!exists)return j({error:'Canal ou cargo inválido.'},404);if(roleId===`${serverId}-owner`)return j({error:'O cargo Criador sempre possui acesso total.'},409);
+    const allow=this.channelPermissionMask(body.allow,type),deny=this.channelPermissionMask(body.deny,type);if(!allow&&!deny)this.c.storage.sql.exec('DELETE FROM channel_permissions WHERE server_id=? AND channel_type=? AND channel_id=? AND role_id=?',serverId,type,channelId,roleId);else this.c.storage.sql.exec('INSERT OR REPLACE INTO channel_permissions VALUES(?,?,?,?,?,?)',serverId,type,channelId,roleId,allow,deny);this.audit(serverId,user,'CHANNEL_PERMISSIONS',channelId,channelId,`Cargo: ${role.name}`);return j({ok:true,allow_mask:allow,deny_mask:deny});
+  }
+  const requestAction=url.pathname.match(new RegExp(`^/api/servers/${serverId}/member-requests/([\\w-]+)/(approve|reject)$`));
+  if(requestAction&&request.method==='POST'){
+    if(!can('APPROVE_MEMBERS')&&!can('MANAGE_SERVER'))return j({error:'Sem permissão para aprovar membros.'},403);const pending=one(this.c.storage.sql.exec('SELECT * FROM membership_requests WHERE id=? AND server_id=?',requestAction[1],serverId));if(!pending)return j({error:'Solicitação não encontrada.'},404);
+    if(requestAction[2]==='approve'){this.c.storage.sql.exec('INSERT OR IGNORE INTO members VALUES(?,?,?)',serverId,pending.user_id,'Membro');this.c.storage.sql.exec('INSERT OR REPLACE INTO member_roles VALUES(?,?,?)',serverId,pending.user_id,`${serverId}-member`);this.c.storage.sql.exec('INSERT OR IGNORE INTO member_profiles(server_id,user_id,name,color) VALUES(?,?,?,?)',serverId,pending.user_id,pending.name,pending.color);this.audit(serverId,user,'MEMBER_APPROVE',pending.user_id,pending.name,'Entrada aprovada')}else this.audit(serverId,user,'MEMBER_REJECT',pending.user_id,pending.name,'Entrada recusada');this.c.storage.sql.exec('DELETE FROM membership_requests WHERE id=?',pending.id);return j({ok:true});
+  }
+  const moderation=url.pathname.match(new RegExp(`^/api/servers/${serverId}/members/([\\w-]+)/moderate$`));
+  if(moderation&&request.method==='POST'){
+    if(!can('MODERATE_MEMBERS')&&!can('BAN_MEMBERS'))return j({error:'Sem permissão para moderar membros.'},403);const target=one(this.c.storage.sql.exec('SELECT members.user_id,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(server_roles.position,100) AS position FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id LEFT JOIN member_roles ON members.server_id=member_roles.server_id AND members.user_id=member_roles.user_id LEFT JOIN server_roles ON server_roles.id=member_roles.role_id WHERE members.server_id=? AND members.user_id=?',serverId,moderation[1]));if(!target)return j({error:'Membro não encontrado.'},404);if(target.user_id===server.owner||target.user_id===user.id)return j({error:'Este membro não pode receber essa ação.'},409);const current=this.roleFor(serverId,user.id);if(!isOwner&&Number(current?.position??999)>=Number(target.position))return j({error:'Você só pode moderar cargos abaixo do seu.'},403);
+    const body=await request.json().catch(()=>({})),action=String(body.action||''),allowed=new Set(['block','timeout','mute','clear']);if(!allowed.has(action))return j({error:'Ação de moderação inválida.'},400);const reason=String(body.reason||'Ação administrativa').trim().slice(0,160),minutes=Math.max(1,Math.min(10080,Number(body.duration_minutes)||10));if(action==='clear'){this.c.storage.sql.exec('DELETE FROM member_sanctions WHERE server_id=? AND user_id=?',serverId,target.user_id);this.audit(serverId,user,'MEMBER_SANCTION_CLEAR',target.user_id,target.name,'Restrições removidas')}else{const until=action==='block'?0:Date.now()+minutes*60000;this.c.storage.sql.exec('INSERT OR REPLACE INTO member_sanctions VALUES(?,?,?,?,?,?,?)',serverId,target.user_id,action,until,reason,user.id,Date.now());this.disconnectVoiceMember(serverId,target.user_id,action==='mute'?'Silenciamento aplicado':'Timeout aplicado');this.audit(serverId,user,`MEMBER_${action.toUpperCase()}`,target.user_id,target.name,`${reason}${until?` · ${minutes} min`:''}`)}return j({ok:true,sanctions:this.activeSanctions(serverId,target.user_id)});
+  }
+  if(url.pathname===transferPath&&request.method==='POST'){
+    if(!isOwner)return j({error:'Somente o criador atual pode transferir o servidor.'},403);const body=await request.json().catch(()=>({})),targetId=String(body.user_id||''),confirmation=String(body.confirmation||'');if(confirmation!==server.name)return j({error:'Digite o nome exato do servidor para confirmar.'},400);if(targetId===user.id)return j({error:'Você já é o criador deste servidor.'},409);const target=one(this.c.storage.sql.exec('SELECT members.user_id,COALESCE(member_profiles.name,"Membro") AS name FROM members LEFT JOIN member_profiles ON members.server_id=member_profiles.server_id AND members.user_id=member_profiles.user_id WHERE members.server_id=? AND members.user_id=?',serverId,targetId));if(!target)return j({error:'Escolha um membro deste servidor.'},404);
+    this.c.storage.transactionSync(()=>{this.c.storage.sql.exec('UPDATE servers SET owner=? WHERE id=?',targetId,serverId);this.c.storage.sql.exec('INSERT OR REPLACE INTO member_roles VALUES(?,?,?)',serverId,targetId,`${serverId}-owner`);this.c.storage.sql.exec('INSERT OR REPLACE INTO member_roles VALUES(?,?,?)',serverId,user.id,`${serverId}-admin`);this.c.storage.sql.exec('UPDATE members SET role="Dono" WHERE server_id=? AND user_id=?',serverId,targetId);this.c.storage.sql.exec('UPDATE members SET role="Admin" WHERE server_id=? AND user_id=?',serverId,user.id)});this.audit(serverId,user,'OWNERSHIP_TRANSFER',targetId,target.name,'Propriedade transferida');return j({ok:true,owner:targetId});
+  }
+  const sanctions=this.activeSanctions(serverId,user.id),blocked=sanctions.some(item=>item.type==='block'),timedOut=sanctions.some(item=>item.type==='timeout'),muted=sanctions.some(item=>item.type==='mute');
+  const messages=url.pathname===`/api/servers/${serverId}/messages`,typing=url.pathname===`/api/servers/${serverId}/typing`,search=url.pathname===`/api/servers/${serverId}/messages/search`,pins=url.pathname===`/api/servers/${serverId}/pins`,messageItem=url.pathname.match(new RegExp(`^/api/servers/${serverId}/messages/([\\w-]+)`));
+  if((messages||typing)&&request.method==='POST'){
+    if(blocked||timedOut)return j({error:blocked?'Você está bloqueado de interagir neste servidor.':'Você está em timeout temporário.'},403);const body=await request.clone().json().catch(()=>({})),channel=String(body.channel||'').slice(0,32);if(!this.canInChannel(serverId,user,'SEND_MESSAGES','text',channel))return j({error:'Seu cargo não pode enviar mensagens neste canal.'},403);if(messages){const safety=this.messageSafety(serverId,user,body.text);if(safety)return j({error:safety},429)}
+  }
+  if((search||pins)&&request.method==='GET'){const channel=String(url.searchParams.get('channel')||'');if(channel&&!this.canInChannel(serverId,user,'VIEW_CHANNELS','text',channel))return j({error:'Sem acesso a este canal.'},403)}
+  if(messageItem){const saved=one(this.c.storage.sql.exec('SELECT channel FROM messages WHERE server_id=? AND id=?',serverId,messageItem[1]));if(saved&&!this.canInChannel(serverId,user,'VIEW_CHANNELS','text',saved.channel))return j({error:'Sem acesso a esta mensagem.'},403)}
+  if((blocked||timedOut)&&messageItem&&['POST','PATCH'].includes(request.method))return j({error:blocked?'Você está bloqueado de interagir neste servidor.':'Você está em timeout temporário.'},403);
+  const voiceSignal=url.pathname===`/api/servers/${serverId}/voice-signal`,voicePresence=url.pathname===`/api/servers/${serverId}/voice`,voiceChannels=url.pathname===`/api/servers/${serverId}/voice-channels`;
+  if((voiceSignal||voicePresence)&&request.method==='POST'){
+    const body=await request.clone().json().catch(()=>({})),joining=voicePresence||body.type==='voice-join';if(joining){if(blocked||timedOut||muted)return j({error:muted?'Você está temporariamente silenciado.':'Você não pode entrar na voz durante esta restrição.'},403);const channel=String(body.channel||'Geral');if(!this.canInChannel(serverId,user,'CONNECT_VOICE','voice',channel))return j({error:'Seu cargo não pode entrar neste canal de voz.'},403)}
+  }
+  const response=await advancedAdministrationFetch.call(this,request);if(!response.ok)return response;
+  if(request.method==='GET'&&url.pathname===`/api/servers/${serverId}`){const data=await response.json();data.channels=(data.channels||[]).filter(channel=>this.canInChannel(serverId,user,'VIEW_CHANNELS','text',typeof channel==='string'?channel:channel.name));return j(data)}
+  if(request.method==='GET'&&messages){const data=await response.json();data.messages=(data.messages||[]).filter(item=>this.canInChannel(serverId,user,'VIEW_CHANNELS','text',item.channel));data.typing=(data.typing||[]).filter(item=>this.canInChannel(serverId,user,'VIEW_CHANNELS','text',item.channel));return j(data)}
+  if(request.method==='GET'&&(search||pins)){const data=await response.json();data.messages=(data.messages||[]).filter(item=>this.canInChannel(serverId,user,'VIEW_CHANNELS','text',item.channel));return j(data)}
+  if(request.method==='GET'&&voiceChannels){const data=await response.json();data.channels=(data.channels||[]).filter(channel=>this.canInChannel(serverId,user,'CONNECT_VOICE','voice',channel.id));return j(data)}
+  if(request.method==='GET'&&voicePresence){const data=await response.json();data.users=(data.users||[]).filter(item=>this.canInChannel(serverId,user,'CONNECT_VOICE','voice',item.channel));return j(data)}return response;
 };
