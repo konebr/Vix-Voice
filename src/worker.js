@@ -259,6 +259,11 @@ Servers.prototype.fetch=async function(req){
   for(const peer of this.voiceSockets?.get(serverId)||[])if(peer.joined&&peer.socket.readyState===1)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,avatar:peer.user.avatar||'',bio:peer.user.bio||'',channel:peer.channel||'Geral'});
   const room=this.voicePollRooms?.get(serverId);
   for(const peer of room?.values()||[])if(peer.joined&&now-peer.updated<=15000)users.set(peer.user.id,{user_id:peer.user.id,name:peer.user.name,color:peer.user.color,avatar:peer.user.avatar||'',bio:peer.user.bio||'',channel:peer.channel||'Geral'});
+  // LiveKit participants do not use the legacy signalling sockets above. Their
+  // client refreshes this durable presence while the SFU room is connected.
+  // Keeping a short expiry also removes users after crashes or lost networks.
+  for(const peer of this.c.storage.sql.exec('SELECT voice_presence.user_id,voice_presence.name,voice_presence.color,voice_presence.channel,COALESCE(member_profiles.avatar,\'\') AS avatar,COALESCE(member_profiles.bio,\'\') AS bio FROM voice_presence LEFT JOIN member_profiles ON member_profiles.server_id=voice_presence.server_id AND member_profiles.user_id=voice_presence.user_id WHERE voice_presence.server_id=? AND voice_presence.updated>=?',serverId,now-30000))users.set(peer.user_id,peer);
+  this.c.storage.sql.exec('DELETE FROM voice_presence WHERE server_id=? AND updated<?',serverId,now-30000);
   return j({users:[...users.values()].sort((a,b)=>a.name.localeCompare(b.name))});
 };
 

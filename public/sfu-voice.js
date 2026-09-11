@@ -12,6 +12,7 @@
   let connecting = false;
   let generation = 0;
   let mediaSyncTimer = null;
+  let presenceTimer = null;
   let publishedMicrophoneTrack = null;
   let microphoneSourceTrack = null;
   const remoteAudio = new Map();
@@ -121,6 +122,8 @@
     connecting = false;
     clearInterval(mediaSyncTimer);
     mediaSyncTimer = null;
+    clearInterval(presenceTimer);
+    presenceTimer = null;
     publication = null;
     publishedMicrophoneTrack = null;
     microphoneSourceTrack = null;
@@ -184,8 +187,11 @@
       await syncPublishedMedia();
       setConnectionUi(true);
       await publishPresence(serverId, channel.id);
-      await refreshVoiceUsers();
       startSpeechMeter?.();
+      presenceTimer = setInterval(() => {
+        if (room === nextRoom && nextRoom.state === LK.ConnectionState.Connected)
+          publishPresence(serverId, channel.id).catch(error => console.warn('Falha ao renovar presença na voz', error));
+      }, 10000);
       mediaSyncTimer = setInterval(() => {
         syncPublishedMedia().catch(error => console.warn('Falha ao atualizar microfone no SFU', error));
         for (const item of remoteAudio.values()) setAudioPreferences(participantId(item.participant), item.audio);
