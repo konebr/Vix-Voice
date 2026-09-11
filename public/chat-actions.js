@@ -171,7 +171,7 @@
   }
 
   async function removeMessage(message) {
-    if (!confirm('Excluir esta mensagem para todos?')) return;
+    if (!await vixConfirm('Excluir esta mensagem para todos?', { title: 'Excluir mensagem', confirmText: 'Excluir' })) return;
     try {
       await api(`/api/servers/${encodeURIComponent(state.server.id)}/messages/${encodeURIComponent(message.id)}`, { method: 'DELETE' });
       state.messages = state.messages.filter(item => item.id !== message.id);
