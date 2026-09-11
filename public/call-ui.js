@@ -12,7 +12,8 @@
   }
   function streamSettings() {
     const box = document.createElement('section'); box.className = 'stream-settings';
-    const head = document.createElement('div'); head.className = 'stream-settings-head'; head.innerHTML = '<span>Qualidade da tela</span><small>30 FPS</small>';
+    const fpsValue = Number(readSettings().screenFps || 30);
+    const head = document.createElement('div'); head.className = 'stream-settings-head'; head.innerHTML = `<span>Qualidade da tela</span><small>${fpsValue} FPS</small>`;
     const choices = document.createElement('div'); choices.className = 'quality-choices';
     const current = readSettings().screenQuality || '720';
     for (const quality of ['480', '720', '1080']) {
@@ -20,12 +21,14 @@
       button.className = quality === current ? 'selected' : ''; button.disabled = !!screenStream;
       button.onclick = () => { saveSettings({ screenQuality: quality }); renderVoicePanel(); }; choices.append(button);
     }
+    const fpsChoices = document.createElement('div'); fpsChoices.className = 'quality-choices fps-choices';
+    for (const fps of [15, 30, 60]) { const button = document.createElement('button'); button.type = 'button'; button.textContent = `${fps} FPS`; button.className = fps === fpsValue ? 'selected' : ''; button.disabled = !!screenStream; button.onclick = () => { saveSettings({ screenFps: fps }); renderVoicePanel(); }; fpsChoices.append(button); }
     const audioLabel = document.createElement('label'); audioLabel.className = 'stream-audio-toggle';
     const copy = document.createElement('span'); copy.innerHTML = '<strong>Áudio da tela</strong><small>Inclui o som da aba compartilhada</small>';
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
-    audioLabel.append(copy, audio, toggle); box.append(head, choices, audioLabel); return box;
+    audioLabel.append(copy, audio, toggle); box.append(head, choices, fpsChoices, audioLabel); return box;
   }
   const baseRender = renderVoicePanel;
   renderVoicePanel = () => {

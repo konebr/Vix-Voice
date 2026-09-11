@@ -48,6 +48,7 @@
       if (item.track !== track) continue;
       for (const element of track.detach()) element.remove();
       remoteScreen.delete(sid);
+      dispatchEvent(new CustomEvent('vix:stream-removed', { detail: { id: participantId(item.participant) } }));
     }
   }
 
@@ -58,10 +59,9 @@
       video.playsInline = true;
       video.controls = true;
       video.title = `Transmissão de ${participantName(participant)}`;
-      video.style.cssText = 'position:fixed;inset:90px 260px 90px 350px;width:calc(100vw - 610px);height:calc(100vh - 180px);object-fit:contain;background:#080a0f;border:1px solid #343746;border-radius:14px;z-index:25;box-shadow:0 18px 60px #000b';
-      document.body.append(video);
-      video.play().catch(() => {});
+      video.hidden = true;
       remoteScreen.set(publicationInfo.trackSid, { track, video, participant });
+      dispatchEvent(new CustomEvent('vix:stream-added', { detail: { id: participantId(participant), name: participantName(participant), video } }));
       return;
     }
     if (track.kind !== LK.Track.Kind.Audio) return;
@@ -76,6 +76,7 @@
     document.body.append(audio);
     audio.play().catch(() => {});
     remoteAudio.set(publicationInfo.trackSid, { track, audio, participant, screen: publicationInfo.source === LK.Track.Source.ScreenShareAudio });
+    if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) dispatchEvent(new CustomEvent('vix:stream-audio', { detail: { id: participantId(participant), audio } }));
   }
 
   function clearRemoteAudio() {
@@ -83,7 +84,7 @@
       for (const element of item.track.detach()) element.remove();
     }
     remoteAudio.clear();
-    for (const item of remoteScreen.values()) for (const element of item.track.detach()) element.remove();
+    for (const item of remoteScreen.values()) { for (const element of item.track.detach()) element.remove(); dispatchEvent(new CustomEvent('vix:stream-removed', { detail: { id: participantId(item.participant) } })); }
     remoteScreen.clear();
   }
 
@@ -180,6 +181,7 @@
     micGainNode = null;
     micGainStream = null;
     room = null;
+    globalThis.vixCanStream = undefined;
     clearRemoteAudio();
     setConnectionUi(false);
     if (activeRoom) await activeRoom.disconnect().catch(() => {});
@@ -215,6 +217,7 @@
       const credentials = await api(`/api/servers/${encodeURIComponent(serverId)}/sfu-token`, {
         method: 'POST', body: JSON.stringify({ channel: channel.id })
       });
+      globalThis.vixCanStream = credentials.canStream !== false;
       if (run !== generation || !desired) return;
       const nextRoom = new LK.Room({ adaptiveStream: true, dynacast: true, disconnectOnPageLeave: true });
       nextRoom

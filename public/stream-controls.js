@@ -1,8 +1,9 @@
 function screenCaptureOptions() {
   const quality = readSettings().screenQuality || '720';
+  const fps = Number(readSettings().screenFps || 30);
   const heights = { '480': 480, '720': 720, '1080': 1080 };
   return {
-    video: { height: { ideal: heights[quality] || 720 }, frameRate: { ideal: 30, max: 30 } },
+    video: { height: { ideal: heights[quality] || 720 }, frameRate: { ideal: fps, max: fps } },
     audio: readSettings().screenAudio !== false
   };
 }

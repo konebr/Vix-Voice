@@ -48,7 +48,7 @@ const PERMISSION_DEFINITIONS=[
   ['KICK_MEMBERS',64,'Expulsar membros'],['BAN_MEMBERS',128,'Banir membros'],['CREATE_INVITES',256,'Criar convites'],
   ['MANAGE_MESSAGES',512,'Gerenciar mensagens'],['ADMINISTRATOR',1024,'Administrador'],
   ['MODERATE_MEMBERS',2048,'Aplicar timeout e silenciamento'],['APPROVE_MEMBERS',4096,'Aprovar novos membros'],
-  ['MANAGE_CHANNEL_PERMISSIONS',8192,'Definir permissões por canal']
+  ['MANAGE_CHANNEL_PERMISSIONS',8192,'Definir permissões por canal'],['STREAM_VIDEO',16384,'Transmitir tela e vídeo']
 ];
 const PERMISSIONS=Object.fromEntries(PERMISSION_DEFINITIONS.map(([key,value])=>[key,value])),ALL_PERMISSIONS=PERMISSION_DEFINITIONS.reduce((mask,[,value])=>mask|value,0);
 const permissionMask=values=>Array.isArray(values)?values.reduce((mask,key)=>mask|(PERMISSIONS[key]||0),0):Math.max(0,Number(values)||0)&ALL_PERMISSIONS;
@@ -59,8 +59,9 @@ Servers.prototype.ensureRoleSystem=function(serverId){
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_bans(server_id TEXT,user_id TEXT,name TEXT,reason TEXT,banned_by TEXT,created INTEGER,PRIMARY KEY(server_id,user_id))');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS audit_logs(id TEXT PRIMARY KEY,server_id TEXT,actor_id TEXT,actor_name TEXT,action TEXT,target_id TEXT,target_name TEXT,detail TEXT,created INTEGER)');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_profiles(server_id TEXT,user_id TEXT,name TEXT,color TEXT,avatar TEXT DEFAULT "",bio TEXT DEFAULT "",PRIMARY KEY(server_id,user_id))');this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS member_presence(server_id TEXT,user_id TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS voice_presence(server_id TEXT,channel TEXT,user_id TEXT,name TEXT,color TEXT,updated INTEGER,PRIMARY KEY(server_id,user_id))');
-  const defaults=[['owner','Criador','#f4c45c',0,ALL_PERMISSIONS],['admin','Administrador','#a9a7ff',10,ALL_PERMISSIONS],['member','Membro','#747d90',100,PERMISSIONS.VIEW_CHANNELS|PERMISSIONS.SEND_MESSAGES|PERMISSIONS.CONNECT_VOICE|PERMISSIONS.CREATE_INVITES]];
+  const defaults=[['owner','Criador','#f4c45c',0,ALL_PERMISSIONS],['admin','Administrador','#a9a7ff',10,ALL_PERMISSIONS],['member','Membro','#747d90',100,PERMISSIONS.VIEW_CHANNELS|PERMISSIONS.SEND_MESSAGES|PERMISSIONS.CONNECT_VOICE|PERMISSIONS.CREATE_INVITES|PERMISSIONS.STREAM_VIDEO]];
   for(const [suffix,name,color,position,permissions] of defaults)this.c.storage.sql.exec('INSERT OR IGNORE INTO server_roles VALUES(?,?,?,?,?,?,1)',`${serverId}-${suffix}`,serverId,name,color,position,permissions);
+  this.c.storage.sql.exec('UPDATE server_roles SET permissions=permissions|? WHERE id=? AND permissions=?',PERMISSIONS.STREAM_VIDEO,`${serverId}-member`,PERMISSIONS.VIEW_CHANNELS|PERMISSIONS.SEND_MESSAGES|PERMISSIONS.CONNECT_VOICE|PERMISSIONS.CREATE_INVITES);
   this.c.storage.sql.exec('UPDATE server_roles SET name=?,position=0,permissions=? WHERE id=?','Criador',ALL_PERMISSIONS,`${serverId}-owner`);
   this.c.storage.sql.exec('UPDATE server_roles SET permissions=? WHERE id=?',ALL_PERMISSIONS,`${serverId}-admin`);
   for(const member of this.c.storage.sql.exec('SELECT user_id,role FROM members WHERE server_id=?',serverId)){const suffix=member.role==='Dono'?'owner':member.role==='Admin'?'admin':'member';this.c.storage.sql.exec('INSERT OR IGNORE INTO member_roles VALUES(?,?,?)',serverId,member.user_id,`${serverId}-${suffix}`)}
@@ -285,7 +286,7 @@ Servers.prototype.fetch=async function(req){
   const serverId=u.pathname.match(/^\/api\/servers\/([\w-]+)(?:\/|$)/)?.[1];if(!serverId)return governanceFetch.call(this,req);
   if(!this.member(serverId,user))return governanceFetch.call(this,req);this.ensureRoleSystem(serverId);
   const server=one(this.c.storage.sql.exec('SELECT * FROM servers WHERE id=?',serverId)),isOwner=server?.owner===user.id,currentRole=this.roleFor(serverId,user.id),can=permission=>this.can(serverId,user,permission);
-  if(u.pathname===`/api/servers/${serverId}`&&req.method==='GET'){if(!can('VIEW_CHANNELS'))return j({error:'Você não tem permissão para ver os canais deste servidor.'},403);const response=await governanceFetch.call(this,req);if(!response.ok)return response;const data=await response.json();data.capabilities={sendMessages:can('SEND_MESSAGES'),connectVoice:can('CONNECT_VOICE'),manageChannels:can('MANAGE_CHANNELS'),manageMessages:can('MANAGE_MESSAGES'),createInvites:can('CREATE_INVITES')};return j(data)}
+  if(u.pathname===`/api/servers/${serverId}`&&req.method==='GET'){if(!can('VIEW_CHANNELS'))return j({error:'Você não tem permissão para ver os canais deste servidor.'},403);const response=await governanceFetch.call(this,req);if(!response.ok)return response;const data=await response.json();data.capabilities={sendMessages:can('SEND_MESSAGES'),connectVoice:can('CONNECT_VOICE'),streamVideo:can('STREAM_VIDEO'),manageChannels:can('MANAGE_CHANNELS'),manageMessages:can('MANAGE_MESSAGES'),createInvites:can('CREATE_INVITES')};return j(data)}
   const roleCollection=u.pathname===`/api/servers/${serverId}/roles`,roleItem=u.pathname.match(new RegExp(`^/api/servers/${serverId}/roles/([\\w-]+)$`));
   const inviteCollection=u.pathname===`/api/servers/${serverId}/invites`,inviteItem=u.pathname.match(new RegExp(`^/api/servers/${serverId}/invites/([\\w-]+)$`));
   const banCollection=u.pathname===`/api/servers/${serverId}/bans`,banItem=u.pathname.match(new RegExp(`^/api/servers/${serverId}/bans/([\\w-]+)$`));
@@ -544,9 +545,10 @@ Servers.prototype.fetch=async function(request){
   if(sanctions.some(item=>['block','timeout','mute'].includes(item.type)))return j({error:'Voce nao pode entrar na voz durante esta restricao.'},403);
   const apiKey=String(this.env.LIVEKIT_API_KEY||''),apiSecret=String(this.env.LIVEKIT_API_SECRET||''),endpoint=String(this.env.LIVEKIT_URL||'');
   if(apiKey.length<8||apiSecret.length<32||!/^wss:\/\//i.test(endpoint))return j({error:'Servidor SFU ainda nao configurado.'},503);
-  const now=Math.floor(Date.now()/1000),room=`server:${serverId}:voice:${channel}`;
-  const token=await signSfuToken(apiKey,apiSecret,{iss:apiKey,sub:user.id,name:user.name,nbf:now-5,exp:now+7200,metadata:JSON.stringify({color:user.color||'#5865f2'}),video:{roomJoin:true,room,canPublish:true,canSubscribe:true,canPublishData:false}});
-  return j({url:endpoint,token,room,participant:{id:user.id,name:user.name,color:user.color||'#5865f2'}});
+  const now=Math.floor(Date.now()/1000),room=`server:${serverId}:voice:${channel}`,canStream=this.canInChannel(serverId,user,'STREAM_VIDEO','voice',channel);
+  const canPublishSources=canStream?['microphone','camera','screen_share','screen_share_audio']:['microphone'];
+  const token=await signSfuToken(apiKey,apiSecret,{iss:apiKey,sub:user.id,name:user.name,nbf:now-5,exp:now+7200,metadata:JSON.stringify({color:user.color||'#5865f2'}),video:{roomJoin:true,room,canPublish:true,canSubscribe:true,canPublishData:false,canPublishSources}});
+  return j({url:endpoint,token,room,canStream,participant:{id:user.id,name:user.name,color:user.color||'#5865f2'}});
 };
 
 // Presença profissional: status escolhido, ausência automática e modo invisível.
@@ -648,7 +650,7 @@ Servers.prototype.fetch=async function(request){
 
 // Administração avançada: acessos por canal, fila de entrada, sanções e proteção contra spam.
 const advancedAdministrationFetch=Servers.prototype.fetch;
-const CHANNEL_PERMISSION_KEYS={text:['VIEW_CHANNELS','SEND_MESSAGES'],voice:['VIEW_CHANNELS','CONNECT_VOICE']};
+const CHANNEL_PERMISSION_KEYS={text:['VIEW_CHANNELS','SEND_MESSAGES'],voice:['VIEW_CHANNELS','CONNECT_VOICE','STREAM_VIDEO']};
 Servers.prototype.ensureAdvancedAdministration=function(serverId){
   this.ensureRoleSystem(serverId);
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS channel_permissions(server_id TEXT,channel_type TEXT,channel_id TEXT,role_id TEXT,allow_mask INTEGER,deny_mask INTEGER,PRIMARY KEY(server_id,channel_type,channel_id,role_id))');
