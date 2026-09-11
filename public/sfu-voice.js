@@ -94,14 +94,19 @@
     if (!enabled) await publication.mute();
   }
 
-  function setConnectionUi(connected) {
+  function setConnectionUi(connected, phase = connected ? 'connected' : 'connecting') {
     voiceRoomConnected = connected;
     globalThis.vixVoiceTransport = connected ? 'sfu' : null;
     renderVoicePanel();
-    if (connected) {
-      const route = document.querySelector('.connection-route strong');
-      if (route) route.textContent = 'SFU da VPS';
-    }
+    const panel = $('voice-state'), header = panel.querySelector('.call-panel-head');
+    const title = header?.querySelector('strong'), dot = header?.querySelector('.call-status-dot');
+    panel.querySelector('.voice-recovery-note')?.remove();
+    if (title) title.textContent = connected ? (screenStream ? 'Transmitindo · SFU da VPS' : 'Voz conectada · SFU da VPS') : phase === 'reconnecting' ? 'Reconectando à VPS…' : 'Conectando à VPS…';
+    dot?.classList.toggle('is-connecting', !connected);
+    dot?.classList.toggle('is-reconnecting', phase === 'reconnecting');
+    dot?.classList.remove('is-offline');
+    const route = panel.querySelector('.connection-route strong');
+    if (route && connected) route.textContent = 'SFU da VPS';
   }
 
   async function publishPresence(serverId, channelId) {
@@ -165,7 +170,7 @@
         .on(LK.RoomEvent.TrackSubscribed, attachRemoteTrack)
         .on(LK.RoomEvent.TrackUnsubscribed, removeRemoteTrack)
         .on(LK.RoomEvent.ActiveSpeakersChanged, markActiveSpeakers)
-        .on(LK.RoomEvent.Reconnecting, () => setConnectionUi(false))
+        .on(LK.RoomEvent.Reconnecting, () => setConnectionUi(false, 'reconnecting'))
         .on(LK.RoomEvent.Reconnected, () => setConnectionUi(true))
         .on(LK.RoomEvent.Disconnected, reason => {
           if (room !== nextRoom) return;

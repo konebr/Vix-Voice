@@ -23,6 +23,12 @@ test('group voice connects to one hosted SFU room', () => {
   assert.doesNotMatch(client, /new RTCPeerConnection/);
 });
 
+test('SFU connection clears the legacy preparing state from the HUD', () => {
+  assert.match(client, /voice-recovery-note/);
+  assert.match(client, /Voz conectada · SFU da VPS/);
+  assert.match(client, /Reconectando à VPS/);
+});
+
 test('LiveKit SDK loads before the SFU adapter', () => {
   const sdk = html.indexOf('vendor/livekit-client.umd.js');
   const adapter = html.indexOf('sfu-voice.js');
