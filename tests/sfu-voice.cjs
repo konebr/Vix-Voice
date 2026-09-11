@@ -29,6 +29,13 @@ test('SFU connection clears the legacy preparing state from the HUD', () => {
   assert.match(client, /Reconectando à VPS/);
 });
 
+test('the roster refreshes only after the SFU is marked connected', () => {
+  const connected = client.indexOf('setConnectionUi(true);', client.indexOf('await nextRoom.connect'));
+  const presence = client.indexOf('await publishPresence(serverId, channel.id);', connected);
+  const refresh = client.indexOf('await refreshVoiceUsers();', presence);
+  assert.ok(connected > 0 && presence > connected && refresh > presence);
+});
+
 test('LiveKit SDK loads before the SFU adapter', () => {
   const sdk = html.indexOf('vendor/livekit-client.umd.js');
   const adapter = html.indexOf('sfu-voice.js');

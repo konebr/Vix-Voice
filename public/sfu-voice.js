@@ -182,8 +182,9 @@
       await nextRoom.connect(credentials.url, credentials.token, { autoSubscribe: true });
       if (run !== generation || !desired) { await nextRoom.disconnect(); return; }
       await syncPublishedMedia();
-      await publishPresence(serverId, channel.id);
       setConnectionUi(true);
+      await publishPresence(serverId, channel.id);
+      await refreshVoiceUsers();
       startSpeechMeter?.();
       mediaSyncTimer = setInterval(() => {
         syncPublishedMedia().catch(error => console.warn('Falha ao atualizar microfone no SFU', error));
