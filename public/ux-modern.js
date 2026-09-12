@@ -43,9 +43,20 @@
   globalThis.vixPrompt = (message, value = '', options = {}) => dialog({ title: options.title || 'Informe os dados', message, value, placeholder: options.placeholder || '', confirmText: options.confirmText || 'Continuar', input: true });
   globalThis.alert = message => toast(message, 'error');
 
-  const themeKey = 'vix-interface-theme';
-  function applyTheme(theme) { document.documentElement.dataset.theme = ['dark', 'midnight', 'light'].includes(theme) ? theme : 'dark'; localStorage.setItem(themeKey, document.documentElement.dataset.theme); }
-  globalThis.vixApplyTheme = applyTheme; applyTheme(localStorage.getItem(themeKey) || 'dark');
+  const themeKey = 'vix-interface-theme', customThemeKey = 'vix-custom-theme';
+  const themes = [
+    ['dark','Escuro','Equilibrado','#171b25','#252a38','#6875ff'],['midnight','Meia-noite','Neon profundo','#0a0d18','#171b2b','#9b6dff'],['light','Claro','Ambientes iluminados','#eef1f7','#ffffff','#5362e8'],
+    ['amethyst','Ametista','Roxo intenso','#170b25','#29103a','#b24cff'],['ocean','Oceano','Azul profundo','#071827','#0d2a3d','#27b7ff'],['forest','Floresta','Verde discreto','#091a17','#123029','#32ca8c'],
+    ['sunset','Pôr do sol','Quente e vibrante','#241118','#3b2027','#ff765e'],['rose','Rosa','Suave e moderno','#24111e','#381b30','#ff69b4'],['lavender','Lavanda','Claro e delicado','#e9e8f6','#f7f6ff','#7768e8'],
+    ['mint','Menta','Calmo e claro','#e5f3ee','#f8fffc','#18a879'],['sand','Areia','Tons naturais','#eee7da','#fffaf0','#b47735'],['ember','Brasa','Vermelho escuro','#190809','#2c1113','#f04455'],
+    ['cobalt','Cobalto','Azul elétrico','#090d25','#111941','#536dfe'],['aurora','Aurora','Verde e violeta','#0b1520','#16253a','#29d6ad'],['custom','Personalizado','Suas próprias cores','#151923','#242938','#6875ff']
+  ];
+  function customTheme() { try { return JSON.parse(localStorage.getItem(customThemeKey) || 'null'); } catch { return null; } }
+  function paintCustom(values = customTheme()) { const root = document.documentElement; for (const [name,value] of Object.entries(values || {})) if (/^#[0-9a-f]{6}$/i.test(value)) root.style.setProperty(`--theme-${name}`, value); }
+  function applyTheme(theme) { const id = themes.some(item => item[0] === theme) ? theme : 'dark'; document.documentElement.dataset.theme = id; if (id === 'custom') paintCustom(); else for (const name of ['bg','panel','accent']) document.documentElement.style.removeProperty(`--theme-${name}`); localStorage.setItem(themeKey, id); dispatchEvent(new CustomEvent('vix:theme-changed', { detail: { theme: id } })); }
+  function saveCustomTheme(values) { localStorage.setItem(customThemeKey, JSON.stringify(values)); paintCustom(values); applyTheme('custom'); }
+  globalThis.vixThemes = themes; globalThis.vixCustomTheme = customTheme; globalThis.vixSaveCustomTheme = saveCustomTheme; globalThis.vixApplyTheme = applyTheme; applyTheme(localStorage.getItem(themeKey) || 'dark');
+  document.body.classList.toggle('vix-contrast', localStorage.getItem('vix-interface-contrast') === 'true');
 
   const bell = document.querySelector('.header-actions [title="Notificações"]');
   if (bell) {
