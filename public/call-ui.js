@@ -11,9 +11,9 @@
     return button;
   }
   function streamSettings() {
-    const box = document.createElement('section'); box.className = 'stream-settings compact-stream-settings';
+    const box = document.createElement('details'); box.className = 'stream-settings compact-stream-settings'; box.open = readSettings().streamSettingsExpanded === true; box.ontoggle = () => saveSettings({ streamSettingsExpanded: box.open });
     const current = readSettings().screenQuality || '720', fpsValue = Number(readSettings().screenFps || 30);
-    const head = document.createElement('div'); head.className = 'stream-settings-head'; const heading = document.createElement('span'); heading.textContent = 'Transmissão';
+    const head = document.createElement('summary'); head.className = 'stream-settings-head'; const heading = document.createElement('span'); heading.textContent = 'Transmissão'; const summary = document.createElement('small'); summary.textContent = `${current}p · ${fpsValue} FPS`; head.append(heading, summary);
     const selectors = document.createElement('div'); selectors.className = 'stream-selectors';
     const makeSelect = (labelText, values, selected, key) => {
       const label = document.createElement('label'); label.title = labelText;
@@ -27,7 +27,7 @@
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
-    audioLabel.append(copy, audio, toggle); head.append(heading, audioLabel); box.append(head, selectors); return box;
+    audioLabel.append(copy, audio, toggle); const body = document.createElement('div'); body.className = 'stream-settings-body'; body.append(selectors, audioLabel); box.append(head, body); return box;
   }
   const baseRender = renderVoicePanel;
   renderVoicePanel = () => {
