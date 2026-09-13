@@ -105,7 +105,11 @@
     baseRenderVoicePanel();
     if (!microphoneStream) return;
     const header = $('voice-state').querySelector('.call-panel-head'), title = header?.querySelector('strong'), dot = header?.querySelector('.call-status-dot');
-    if (!header || recoveryState === 'connected') return;
+    const sfuConnected = voiceRoomConnected && globalThis.vixVoiceTransport === 'sfu';
+    if (!header || recoveryState === 'connected' || sfuConnected) {
+      $('voice-state').querySelector('.voice-recovery-note')?.remove();
+      return;
+    }
     const labels = { connecting: 'Conectando…', reconnecting: 'Reconectando…', offline: 'Sem internet' };
     if (title) title.textContent = labels[recoveryState] || 'Preparando voz…';
     dot?.classList.add(recoveryState === 'offline' ? 'is-offline' : 'is-reconnecting');
