@@ -114,7 +114,7 @@
     if (measuring || !microphoneStream || !voiceRoomConnected) return;
     measuring = true;
     try {
-      const rtc = globalThis.vixVoiceTransport === 'sfu' ? null : await peerMetrics();
+      const rtc = globalThis.vixVoiceTransport === 'sfu' ? await globalThis.vixGetSfuMetrics?.() : await peerMetrics();
       const rawLatency = Number.isFinite(rtc?.latency) ? rtc.latency : await serverRoundTripTime();
       samples.push(rawLatency);
       if (samples.length > 5) samples.shift();

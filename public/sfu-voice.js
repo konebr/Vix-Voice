@@ -38,6 +38,29 @@
     if (audio.setSinkId && settings.output) audio.setSinkId(settings.output).catch(() => {});
   }
 
+  async function sfuMetrics() {
+    if (!room || room.state !== LK.ConnectionState.Connected) return null;
+    const reports = [];
+    for (const publicationInfo of room.localParticipant.audioTrackPublications.values()) {
+      const stats = await publicationInfo.track?.getRTCStatsReport?.().catch(() => null);
+      if (stats) reports.push(stats);
+    }
+    for (const item of remoteAudio.values()) {
+      if (item.screen) continue;
+      const stats = await item.track?.getRTCStatsReport?.().catch(() => null);
+      if (stats) reports.push(stats);
+    }
+    const latency = [], jitter = []; let lost = 0, received = 0;
+    for (const stats of reports) for (const report of stats.values()) {
+      if (report.type === 'remote-inbound-rtp' && Number.isFinite(report.roundTripTime)) latency.push(report.roundTripTime * 1000);
+      if (report.type === 'candidate-pair' && report.state === 'succeeded' && Number.isFinite(report.currentRoundTripTime)) latency.push(report.currentRoundTripTime * 1000);
+      if (report.type === 'inbound-rtp' && (!report.kind || report.kind === 'audio')) { if (Number.isFinite(report.jitter)) jitter.push(report.jitter * 1000); lost += Math.max(0, Number(report.packetsLost) || 0); received += Math.max(0, Number(report.packetsReceived) || 0); }
+    }
+    const average = values => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null, total = lost + received;
+    return { latency: average(latency), jitter: average(jitter), loss: total ? Math.round(lost / total * 1000) / 10 : 0, route: 'SFU da VPS', peers: remoteAudio.size };
+  }
+  globalThis.vixGetSfuMetrics = sfuMetrics;
+
   function removeRemoteTrack(track) {
     for (const [sid, item] of remoteAudio) {
       if (item.track !== track) continue;
