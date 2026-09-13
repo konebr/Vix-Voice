@@ -22,7 +22,8 @@ test('professional audio constraints respect device and processing preferences',
   assert.equal(constraints.noiseSuppression, false);
   assert.equal(constraints.autoGainControl, false);
   assert.equal(constraints.sampleRate.ideal, 48000);
-  assert.equal(constraints.channelCount.ideal, 2);
+  assert.equal(constraints.channelCount.ideal, 1);
+  assert.equal(constraints.channelCount.max, 1);
 });
 
 test('removed saved microphone falls back to the system default', async () => {
