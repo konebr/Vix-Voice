@@ -117,7 +117,7 @@
       const id = participantId(item.participant), speaking = active.has(id);
       item.audio.dataset.speaking = String(speaking);
       const settings = readSettings(), prefs = participantPreferences(id);
-      item.audio.muted = deafened || (!item.screen && (Boolean(prefs.muted) || (settings.voiceActivatedOutput !== false && !speaking)));
+      item.audio.muted = deafened || (!item.screen && Boolean(prefs.muted));
     }
     for (const row of document.querySelectorAll('.voice-user[data-voice-user-id]')) row.dataset.speaking = String(active.has(row.dataset.voiceUserId));
   }
@@ -139,7 +139,7 @@
     if (next && next !== publishedMicrophoneTrack) {
       const enabled = microphoneStream?.getAudioTracks?.()[0]?.enabled !== false;
       if (publication?.track) await room.localParticipant.unpublishTrack(publication.track, false).catch(() => {});
-      publication = await room.localParticipant.publishTrack(next, { source: LK.Track.Source.Microphone, dtx: true, red: true, audioPreset: LK.AudioPresets?.music });
+      publication = await room.localParticipant.publishTrack(next, { source: LK.Track.Source.Microphone, dtx: true, red: true, audioPreset: LK.AudioPresets?.speech, forceStereo: false });
       publishedMicrophoneTrack = next;
       if (!enabled) await publication.mute();
     }
