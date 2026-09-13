@@ -13,21 +13,21 @@
   function streamSettings() {
     const box = document.createElement('section'); box.className = 'stream-settings compact-stream-settings';
     const current = readSettings().screenQuality || '720', fpsValue = Number(readSettings().screenFps || 30);
-    const head = document.createElement('div'); head.className = 'stream-settings-head'; head.innerHTML = '<span>Transmissão</span><small>Qualidade e som</small>';
+    const head = document.createElement('div'); head.className = 'stream-settings-head'; const heading = document.createElement('span'); heading.textContent = 'Transmissão';
     const selectors = document.createElement('div'); selectors.className = 'stream-selectors';
     const makeSelect = (labelText, values, selected, key) => {
-      const label = document.createElement('label'), caption = document.createElement('span'); caption.textContent = labelText; label.append(caption);
-      const select = document.createElement('select'); select.disabled = !!screenStream;
+      const label = document.createElement('label'); label.title = labelText;
+      const select = document.createElement('select'); select.disabled = !!screenStream; select.setAttribute('aria-label', labelText);
       for (const [value, text] of values) { const option = document.createElement('option'); option.value = value; option.textContent = text; option.selected = String(value) === String(selected); select.append(option); }
       select.onchange = () => { saveSettings({ [key]: key === 'screenFps' ? Number(select.value) : select.value }); renderVoicePanel(); }; label.append(select); return label;
     };
     selectors.append(makeSelect('Resolução', [['480','480p'],['720','720p'],['1080','1080p']], current, 'screenQuality'), makeSelect('Fluidez', [[15,'15 FPS'],[30,'30 FPS'],[60,'60 FPS']], fpsValue, 'screenFps'));
     const audioLabel = document.createElement('label'); audioLabel.className = 'stream-audio-toggle';
-    const copy = document.createElement('span'); copy.innerHTML = '<strong>Compartilhar áudio</strong><small>Som da aba ou da tela</small>';
+    const copy = document.createElement('span'); copy.innerHTML = '<strong>Áudio</strong>';
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
-    audioLabel.append(copy, audio, toggle); box.append(head, selectors, audioLabel); return box;
+    audioLabel.append(copy, audio, toggle); head.append(heading, audioLabel); box.append(head, selectors); return box;
   }
   const baseRender = renderVoicePanel;
   renderVoicePanel = () => {
