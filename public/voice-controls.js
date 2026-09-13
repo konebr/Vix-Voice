@@ -1,5 +1,11 @@
 (() => {
   const levels = new Map();
+  addEventListener('vix:mic-level', event => {
+    const control = document.querySelector('.voice-sensitivity'), meter = control?.querySelector('.voice-sensitivity-meter i'), status = control?.querySelector('.voice-gate-status');
+    if (!meter || !status) return;
+    const level = Math.max(0, Math.min(100, (Number(event.detail?.levelDb) + 60) / 60 * 100));
+    meter.style.width = `${level}%`; status.textContent = event.detail?.open ? 'Voz detectada' : 'Ruído bloqueado'; status.classList.toggle('is-open', Boolean(event.detail?.open));
+  });
   const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
   const shouldPlayRemoteAudio = (settings, muted, speaking) => !muted && (settings.voiceActivatedOutput === false || speaking);
   const isRemoteSpeaking = (contextState, rms, until, now) => contextState !== 'running' || rms > 0.012 || now < until;
@@ -106,7 +112,7 @@
         const sender = peer.connection.getSenders().find(item => item.track?.kind === 'audio');
         if (sender) await sender.replaceTrack(replacement.getAudioTracks()[0]);
       }
-      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null;
+      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null; micGateWorklet = null;
       micGainNode?.disconnect(); await micGainContext?.close();
       micGainNode = null; micGainContext = null; micGainStream = null;
       microphoneStream = replacement;
@@ -137,15 +143,15 @@
     const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
     const activation = makeToggle('settings-voice-activation', 'Ativação por voz', 'voiceActivation');
     const sensitivity = document.createElement('section'); sensitivity.className = 'voice-sensitivity';
-    sensitivity.innerHTML = '<header><span><strong>Sensibilidade do microfone</strong><small>Ajuste quanto som é necessário para abrir o microfone.</small></span><output></output></header><input type="range" min="0" max="100" step="1"><div class="voice-sensitivity-scale"><span>Filtrar mais ruído</span><span>Captar voz baixa</span></div><footer><small></small><button type="button">Calibrar ambiente</button></footer>';
+    sensitivity.innerHTML = '<header><span><strong>Sensibilidade do microfone</strong><small>Ajuste quanto som é necessário para abrir o microfone.</small></span><output></output></header><div class="voice-sensitivity-meter"><i></i><b></b></div><div class="voice-gate-status">Aguardando áudio</div><input type="range" min="0" max="100" step="1"><div class="voice-sensitivity-scale"><span>Filtrar mais ruído</span><span>Captar voz baixa</span></div><footer><small></small><button type="button">Calibrar ambiente</button></footer>';
     const sensitivityInput = sensitivity.querySelector('input'), sensitivityValue = sensitivity.querySelector('output'), sensitivityHint = sensitivity.querySelector('footer small'), calibrate = sensitivity.querySelector('button');
     const thresholdToLevel = threshold => Math.round(Math.max(0, Math.min(100, (-28 - Number(threshold)) / 27 * 100)));
     const levelToThreshold = level => Math.round(-28 - Number(level) / 100 * 27);
-    const paintSensitivity = level => { const threshold = levelToThreshold(level); sensitivityValue.value = `${level}%`; sensitivityHint.textContent = level < 35 ? 'Forte contra ruídos' : level > 70 ? 'Captura vozes mais baixas' : 'Equilíbrio recomendado'; sensitivity.style.setProperty('--sensitivity', `${level}%`); return threshold; };
+    const paintSensitivity = level => { const threshold = levelToThreshold(level); sensitivityValue.value = `${level}%`; sensitivityHint.textContent = level < 35 ? 'Forte contra ruídos' : level > 70 ? 'Captura vozes mais baixas' : 'Equilíbrio recomendado'; sensitivity.style.setProperty('--sensitivity', `${level}%`); sensitivity.style.setProperty('--threshold-position', `${Math.max(0,Math.min(100,(threshold+60)/60*100))}%`); return threshold; };
     sensitivityInput.value = thresholdToLevel(readSettings().voiceThreshold ?? -42); paintSensitivity(sensitivityInput.value);
-    sensitivityInput.oninput = () => saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) });
+    sensitivityInput.oninput = () => { saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) }); configureMicrophoneGate?.(); };
     const activationInput = activation.querySelector('input'), syncSensitivity = () => { sensitivity.classList.toggle('is-disabled', !activationInput.checked); sensitivityInput.disabled = !activationInput.checked; calibrate.disabled = !activationInput.checked; };
-    activationInput.onchange = () => { saveSettings({ voiceActivation: activationInput.checked }); syncSensitivity(); };
+    activationInput.onchange = () => { saveSettings({ voiceActivation: activationInput.checked }); configureMicrophoneGate?.(); syncSensitivity(); };
     syncSensitivity();
     calibrate.onclick = async () => {
       calibrate.disabled = true; calibrate.textContent = 'Ouvindo o ambiente…';
@@ -157,7 +163,7 @@
         const samples = new Float32Array(analyser.fftSize), levels = [], until = performance.now() + 2200;
         while (performance.now() < until) { analyser.getFloatTimeDomainData(samples); let energy = 0; for (const sample of samples) energy += sample * sample; levels.push(20 * Math.log10(Math.max(0.00001, Math.sqrt(energy / samples.length)))); await new Promise(resolve => setTimeout(resolve, 45)); }
         levels.sort((a, b) => a - b); const ambient = levels[Math.floor(levels.length * .8)] ?? -55, threshold = Math.max(-55, Math.min(-30, Math.round(ambient + 9)));
-        sensitivityInput.value = thresholdToLevel(threshold); saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) }); vixToast('Sensibilidade calibrada para este ambiente.', 'success');
+        sensitivityInput.value = thresholdToLevel(threshold); saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) }); configureMicrophoneGate?.(); vixToast('Sensibilidade calibrada para este ambiente.', 'success');
       } catch (error) { vixToast(`Não foi possível calibrar: ${error.message}`, 'error'); }
       finally { source?.disconnect(); await context?.close().catch(() => {}); if (temporary) stream?.getTracks().forEach(track => track.stop()); calibrate.textContent = 'Calibrar novamente'; calibrate.disabled = !activationInput.checked; }
     };
