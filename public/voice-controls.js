@@ -112,7 +112,7 @@
         const sender = peer.connection.getSenders().find(item => item.track?.kind === 'audio');
         if (sender) await sender.replaceTrack(replacement.getAudioTracks()[0]);
       }
-      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null; micGateWorklet = null;
+      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null; micGateWorklet = null; destroyNeuralNoiseSuppressor?.();
       micGainNode?.disconnect(); await micGainContext?.close();
       micGainNode = null; micGainContext = null; micGainStream = null;
       microphoneStream = replacement;
@@ -140,7 +140,9 @@
       label.append(input); return label;
     };
     const echo = makeToggle('settings-echo-cancellation', 'Cancelar eco do ambiente', 'echoCancellation');
-    const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
+    const noise = makeToggle('settings-noise-suppression', 'Redução básica do navegador', 'noiseSuppression');
+    const intelligentNoise = makeToggle('settings-intelligent-noise', 'Redução inteligente de ruído', 'intelligentNoiseSuppression');
+    intelligentNoise.classList.add('intelligent-noise-toggle'); intelligentNoise.title = 'Remove teclado, ventilador e ruídos contínuos no seu dispositivo';
     const activation = makeToggle('settings-voice-activation', 'Ativação por voz', 'voiceActivation');
     const sensitivity = document.createElement('section'); sensitivity.className = 'voice-sensitivity';
     sensitivity.innerHTML = '<header><span><strong>Sensibilidade do microfone</strong><small>Ajuste quanto som é necessário para abrir o microfone.</small></span><output></output></header><div class="voice-sensitivity-meter"><i></i><b></b></div><div class="voice-gate-status">Aguardando áudio</div><input type="range" min="0" max="100" step="1"><div class="voice-sensitivity-scale"><span>Filtrar mais ruído</span><span>Captar voz baixa</span></div><footer><small></small><button type="button">Calibrar ambiente</button></footer>';
@@ -173,12 +175,12 @@
       saveSettings({ voiceActivatedOutput: enabled });
       for (const peer of voicePeers.values()) syncRemotePlayback(peer, enabled ? peer.remoteSpeaking === true : true);
     };
-    autoGain.closest('label').after(echo, noise, activation, sensitivity, activatedOutput);
+    autoGain.closest('label').after(echo, noise, intelligentNoise, activation, sensitivity, activatedOutput);
     const activeTrack = microphoneStream?.getAudioTracks()[0], active = activeTrack?.getSettings?.();
     if (activeTrack) {
       const format = document.createElement('p'); format.className = 'voice-format';
       format.textContent = `Formato ativo: ${active.sampleRate ? `${Math.round(active.sampleRate / 1000)} kHz` : 'automático'} · ${active.channelCount > 1 ? 'estéreo' : 'mono'}`;
-      noise.after(format);
+      intelligentNoise.after(format);
     }
     $('settings-input').onchange = async event => { saveSettings({ input: event.target.value }); await switchMicrophone(); };
     $('settings-auto-gain').onchange = async event => { saveSettings({ autoGain: event.target.checked }); await switchMicrophone(); };

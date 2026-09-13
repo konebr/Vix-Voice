@@ -11,24 +11,23 @@
     return button;
   }
   function streamSettings() {
-    const box = document.createElement('section'); box.className = 'stream-settings';
-    const fpsValue = Number(readSettings().screenFps || 30);
-    const head = document.createElement('div'); head.className = 'stream-settings-head'; head.innerHTML = `<span>Qualidade da tela</span><small>${fpsValue} FPS</small>`;
-    const choices = document.createElement('div'); choices.className = 'quality-choices';
-    const current = readSettings().screenQuality || '720';
-    for (const quality of ['480', '720', '1080']) {
-      const button = document.createElement('button'); button.type = 'button'; button.textContent = `${quality}p`;
-      button.className = quality === current ? 'selected' : ''; button.disabled = !!screenStream;
-      button.onclick = () => { saveSettings({ screenQuality: quality }); renderVoicePanel(); }; choices.append(button);
-    }
-    const fpsChoices = document.createElement('div'); fpsChoices.className = 'quality-choices fps-choices';
-    for (const fps of [15, 30, 60]) { const button = document.createElement('button'); button.type = 'button'; button.textContent = `${fps} FPS`; button.className = fps === fpsValue ? 'selected' : ''; button.disabled = !!screenStream; button.onclick = () => { saveSettings({ screenFps: fps }); renderVoicePanel(); }; fpsChoices.append(button); }
+    const box = document.createElement('section'); box.className = 'stream-settings compact-stream-settings';
+    const current = readSettings().screenQuality || '720', fpsValue = Number(readSettings().screenFps || 30);
+    const head = document.createElement('div'); head.className = 'stream-settings-head'; head.innerHTML = '<span>Transmissão</span><small>Qualidade e som</small>';
+    const selectors = document.createElement('div'); selectors.className = 'stream-selectors';
+    const makeSelect = (labelText, values, selected, key) => {
+      const label = document.createElement('label'), caption = document.createElement('span'); caption.textContent = labelText; label.append(caption);
+      const select = document.createElement('select'); select.disabled = !!screenStream;
+      for (const [value, text] of values) { const option = document.createElement('option'); option.value = value; option.textContent = text; option.selected = String(value) === String(selected); select.append(option); }
+      select.onchange = () => { saveSettings({ [key]: key === 'screenFps' ? Number(select.value) : select.value }); renderVoicePanel(); }; label.append(select); return label;
+    };
+    selectors.append(makeSelect('Resolução', [['480','480p'],['720','720p'],['1080','1080p']], current, 'screenQuality'), makeSelect('Fluidez', [[15,'15 FPS'],[30,'30 FPS'],[60,'60 FPS']], fpsValue, 'screenFps'));
     const audioLabel = document.createElement('label'); audioLabel.className = 'stream-audio-toggle';
-    const copy = document.createElement('span'); copy.innerHTML = '<strong>Áudio da tela</strong><small>Inclui o som da aba compartilhada</small>';
+    const copy = document.createElement('span'); copy.innerHTML = '<strong>Compartilhar áudio</strong><small>Som da aba ou da tela</small>';
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
-    audioLabel.append(copy, audio, toggle); box.append(head, choices, fpsChoices, audioLabel); return box;
+    audioLabel.append(copy, audio, toggle); box.append(head, selectors, audioLabel); return box;
   }
   const baseRender = renderVoicePanel;
   renderVoicePanel = () => {
