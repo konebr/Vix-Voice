@@ -14,12 +14,13 @@
   let video = placeholderVideo, activeVideo = null, activeVideoStyle = '';
 
   function releaseVideo() { if (!activeVideo) return; activeVideo.pause(); activeVideo.hidden = true; activeVideo.style.cssText = activeVideoStyle; document.body.append(activeVideo); activeVideo = null; video = placeholderVideo; }
-  function closeViewer() { selected = null; releaseVideo(); placeholderVideo.pause(); placeholderVideo.srcObject = null; viewer.hidden = true; }
+  function closeViewer() { if (selected) dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id: selected, active: false } })); selected = null; releaseVideo(); placeholderVideo.pause(); placeholderVideo.srcObject = null; viewer.hidden = true; }
   function streamMedia(item) { const source = item?.video?.srcObject || item?.stream || null, track = source?.getVideoTracks?.().find(value => value.readyState === 'live'); if (!track) return null; if (item.playbackTrack !== track) { item.playbackTrack = track; item.playbackStream = new MediaStream([track]); } return item.playbackStream; }
   function applyVolume(item, value) { const amount = Number(value) / 100; if (item?.audio) item.audio.volume = amount; video.volume = amount; output.value = `${value}%`; }
   function mountVideo(item) { const element = item?.video; if (!element) return false; if (activeVideo !== element) { releaseVideo(); activeVideo = element; activeVideoStyle = element.style.cssText; element.style.cssText = ''; element.hidden = false; element.classList.add('active-stream-video'); main.prepend(element); } video = element; video.muted = Boolean(item.local); return true; }
   function watch(id) {
     const item = streams.get(id); if (!item) return closeViewer(); selected = id; viewer.hidden = false;
+    dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id, active: true } }));
     viewer.querySelector('header strong').textContent = item.name; status.textContent = 'Preparando transmissão…';
     const mounted = mountVideo(item), media = streamMedia(item); if (!mounted) { video = placeholderVideo; video.muted = true; if (video.srcObject !== media) video.srcObject = media; }
     applyVolume(item, volume.value); if (!media) status.textContent = 'Aguardando os primeiros quadros…'; else video.play().catch(() => { status.textContent = 'Clique no vídeo para iniciar a reprodução.'; });

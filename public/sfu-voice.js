@@ -83,8 +83,8 @@
       video.controls = true;
       video.title = `Transmissão de ${participantName(participant)}`;
       video.hidden = true;
-      remoteScreen.set(publicationInfo.trackSid, { track, video, participant });
-      dispatchEvent(new CustomEvent('vix:stream-added', { detail: { id: participantId(participant), name: participantName(participant), video } }));
+      remoteScreen.set(publicationInfo.trackSid, { track, video, participant, publication: publicationInfo });
+      dispatchEvent(new CustomEvent('vix:stream-added', { detail: { id: participantId(participant), name: participantName(participant), video, publication: publicationInfo } }));
       return;
     }
     if (track.kind !== LK.Track.Kind.Audio) return;
@@ -148,7 +148,8 @@
     let screenChanged = false;
     if (nextScreenVideo !== publishedScreenVideoTrack) {
       if (screenVideoPublication?.track) await room.localParticipant.unpublishTrack(screenVideoPublication.track, false).catch(() => {});
-      screenVideoPublication = nextScreenVideo ? await room.localParticipant.publishTrack(nextScreenVideo, { source: LK.Track.Source.ScreenShare, simulcast: true }) : null;
+      if (nextScreenVideo && 'contentHint' in nextScreenVideo) nextScreenVideo.contentHint = Number(readSettings().screenFps || 30) > 30 ? 'motion' : 'detail';
+      screenVideoPublication = nextScreenVideo ? await room.localParticipant.publishTrack(nextScreenVideo, { source: LK.Track.Source.ScreenShare, simulcast: true, videoEncoding: typeof screenPublishOptions === 'function' ? screenPublishOptions() : { maxBitrate: 3500000, maxFramerate: 30, priority: 'high' } }) : null;
       publishedScreenVideoTrack = nextScreenVideo;
       screenChanged = true;
     }
@@ -161,6 +162,16 @@
     if (screenChanged) setConnectionUi(true);
     } finally { mediaSyncing = false; }
   }
+
+  addEventListener('vix:stream-view-quality', event => {
+    const id = String(event.detail?.id || '');
+    const quality = event.detail?.active ? LK.VideoQuality.HIGH : LK.VideoQuality.LOW;
+    for (const item of remoteScreen.values()) {
+      if (participantId(item.participant) !== id) continue;
+      item.publication?.setVideoQuality?.(quality);
+      item.publication?.setEnabled?.(true);
+    }
+  });
 
   function setConnectionUi(connected, phase = connected ? 'connected' : 'connecting') {
     voiceRoomConnected = connected;

@@ -1,11 +1,25 @@
 function screenCaptureOptions() {
   const quality = readSettings().screenQuality || '720';
   const fps = Number(readSettings().screenFps || 30);
-  const heights = { '480': 480, '720': 720, '1080': 1080 };
+  const presets = { '480': { width: 854, height: 480 }, '720': { width: 1280, height: 720 }, '1080': { width: 1920, height: 1080 } };
+  const preset = presets[quality] || presets['720'];
   return {
-    video: { height: { ideal: heights[quality] || 720 }, frameRate: { ideal: fps, max: fps } },
+    video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: fps, max: fps }, resizeMode: 'none' },
     audio: readSettings().screenAudio !== false
   };
+}
+
+function prepareScreenStream(stream) {
+  const track = stream?.getVideoTracks?.()[0];
+  if (track && 'contentHint' in track) track.contentHint = Number(readSettings().screenFps || 30) > 30 ? 'motion' : 'detail';
+  return stream;
+}
+
+function screenPublishOptions() {
+  const quality = readSettings().screenQuality || '720';
+  const fps = Number(readSettings().screenFps || 30);
+  const bitrate = { '480': 1400000, '720': 3500000, '1080': 6500000 }[quality] || 3500000;
+  return { maxBitrate: Math.round(bitrate * (fps > 30 ? 1.35 : 1)), maxFramerate: fps, priority: 'high' };
 }
 
 (() => {
