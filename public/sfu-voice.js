@@ -129,6 +129,7 @@
     const source = microphoneStream?.getAudioTracks?.()[0] || null;
     if (source && source !== microphoneSourceTrack) {
       microphoneSourceTrack = source;
+      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null;
       await micGainContext?.close().catch(() => {});
       micGainContext = null;
       micGainNode = null;
@@ -210,6 +211,7 @@
     publishedScreenVideoTrack = null;
     publishedScreenAudioTrack = null;
     mediaSyncing = false;
+    clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null;
     await micGainContext?.close().catch(() => {});
     micGainContext = null;
     micGainNode = null;

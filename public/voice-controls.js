@@ -106,6 +106,7 @@
         const sender = peer.connection.getSenders().find(item => item.track?.kind === 'audio');
         if (sender) await sender.replaceTrack(replacement.getAudioTracks()[0]);
       }
+      clearInterval(micGateTimer); micGateTimer = null; micGateNode = null; micGateAnalyser = null;
       micGainNode?.disconnect(); await micGainContext?.close();
       micGainNode = null; micGainContext = null; micGainStream = null;
       microphoneStream = replacement;
@@ -134,13 +135,20 @@
     };
     const echo = makeToggle('settings-echo-cancellation', 'Cancelar eco do ambiente', 'echoCancellation');
     const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
+    const activation = makeToggle('settings-voice-activation', 'Ativação por voz', 'voiceActivation');
+    const sensitivity = document.createElement('label'); sensitivity.className = 'voice-sensitivity';
+    sensitivity.innerHTML = '<span><strong>Sensibilidade do microfone</strong><small>Feche mais ruídos ou capture uma voz mais baixa</small></span>';
+    const sensitivityInput = document.createElement('input'); sensitivityInput.type = 'range'; sensitivityInput.min = '-55'; sensitivityInput.max = '-28'; sensitivityInput.value = readSettings().voiceThreshold ?? -42;
+    const sensitivityValue = document.createElement('output'); sensitivityValue.value = `${sensitivityInput.value} dB`;
+    sensitivityInput.oninput = () => { saveSettings({ voiceThreshold: Number(sensitivityInput.value) }); sensitivityValue.value = `${sensitivityInput.value} dB`; };
+    sensitivity.append(sensitivityInput, sensitivityValue);
     const activatedOutput = makeToggle('settings-voice-activated-output', 'Ativar saída somente quando alguém falar', 'voiceActivatedOutput');
     activatedOutput.querySelector('input').onchange = () => {
       const enabled = activatedOutput.querySelector('input').checked;
       saveSettings({ voiceActivatedOutput: enabled });
       for (const peer of voicePeers.values()) syncRemotePlayback(peer, enabled ? peer.remoteSpeaking === true : true);
     };
-    autoGain.closest('label').after(echo, noise, activatedOutput);
+    autoGain.closest('label').after(echo, noise, activation, sensitivity, activatedOutput);
     const activeTrack = microphoneStream?.getAudioTracks()[0], active = activeTrack?.getSettings?.();
     if (activeTrack) {
       const format = document.createElement('p'); format.className = 'voice-format';
