@@ -136,12 +136,31 @@
     const echo = makeToggle('settings-echo-cancellation', 'Cancelar eco do ambiente', 'echoCancellation');
     const noise = makeToggle('settings-noise-suppression', 'Reduzir ruído de fundo', 'noiseSuppression');
     const activation = makeToggle('settings-voice-activation', 'Ativação por voz', 'voiceActivation');
-    const sensitivity = document.createElement('label'); sensitivity.className = 'voice-sensitivity';
-    sensitivity.innerHTML = '<span><strong>Sensibilidade do microfone</strong><small>Feche mais ruídos ou capture uma voz mais baixa</small></span>';
-    const sensitivityInput = document.createElement('input'); sensitivityInput.type = 'range'; sensitivityInput.min = '-55'; sensitivityInput.max = '-28'; sensitivityInput.value = readSettings().voiceThreshold ?? -42;
-    const sensitivityValue = document.createElement('output'); sensitivityValue.value = `${sensitivityInput.value} dB`;
-    sensitivityInput.oninput = () => { saveSettings({ voiceThreshold: Number(sensitivityInput.value) }); sensitivityValue.value = `${sensitivityInput.value} dB`; };
-    sensitivity.append(sensitivityInput, sensitivityValue);
+    const sensitivity = document.createElement('section'); sensitivity.className = 'voice-sensitivity';
+    sensitivity.innerHTML = '<header><span><strong>Sensibilidade do microfone</strong><small>Ajuste quanto som é necessário para abrir o microfone.</small></span><output></output></header><input type="range" min="0" max="100" step="1"><div class="voice-sensitivity-scale"><span>Filtrar mais ruído</span><span>Captar voz baixa</span></div><footer><small></small><button type="button">Calibrar ambiente</button></footer>';
+    const sensitivityInput = sensitivity.querySelector('input'), sensitivityValue = sensitivity.querySelector('output'), sensitivityHint = sensitivity.querySelector('footer small'), calibrate = sensitivity.querySelector('button');
+    const thresholdToLevel = threshold => Math.round(Math.max(0, Math.min(100, (-28 - Number(threshold)) / 27 * 100)));
+    const levelToThreshold = level => Math.round(-28 - Number(level) / 100 * 27);
+    const paintSensitivity = level => { const threshold = levelToThreshold(level); sensitivityValue.value = `${level}%`; sensitivityHint.textContent = level < 35 ? 'Forte contra ruídos' : level > 70 ? 'Captura vozes mais baixas' : 'Equilíbrio recomendado'; sensitivity.style.setProperty('--sensitivity', `${level}%`); return threshold; };
+    sensitivityInput.value = thresholdToLevel(readSettings().voiceThreshold ?? -42); paintSensitivity(sensitivityInput.value);
+    sensitivityInput.oninput = () => saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) });
+    const activationInput = activation.querySelector('input'), syncSensitivity = () => { sensitivity.classList.toggle('is-disabled', !activationInput.checked); sensitivityInput.disabled = !activationInput.checked; calibrate.disabled = !activationInput.checked; };
+    activationInput.onchange = () => { saveSettings({ voiceActivation: activationInput.checked }); syncSensitivity(); };
+    syncSensitivity();
+    calibrate.onclick = async () => {
+      calibrate.disabled = true; calibrate.textContent = 'Ouvindo o ambiente…';
+      let stream = microphoneStream, temporary = false, context, source;
+      try {
+        if (!stream) { stream = await requestMicrophone(); temporary = true; }
+        context = new AudioContext({ latencyHint: 'interactive' }); source = context.createMediaStreamSource(stream);
+        const analyser = context.createAnalyser(); analyser.fftSize = 1024; source.connect(analyser); await context.resume();
+        const samples = new Float32Array(analyser.fftSize), levels = [], until = performance.now() + 2200;
+        while (performance.now() < until) { analyser.getFloatTimeDomainData(samples); let energy = 0; for (const sample of samples) energy += sample * sample; levels.push(20 * Math.log10(Math.max(0.00001, Math.sqrt(energy / samples.length)))); await new Promise(resolve => setTimeout(resolve, 45)); }
+        levels.sort((a, b) => a - b); const ambient = levels[Math.floor(levels.length * .8)] ?? -55, threshold = Math.max(-55, Math.min(-30, Math.round(ambient + 9)));
+        sensitivityInput.value = thresholdToLevel(threshold); saveSettings({ voiceThreshold: paintSensitivity(sensitivityInput.value) }); vixToast('Sensibilidade calibrada para este ambiente.', 'success');
+      } catch (error) { vixToast(`Não foi possível calibrar: ${error.message}`, 'error'); }
+      finally { source?.disconnect(); await context?.close().catch(() => {}); if (temporary) stream?.getTracks().forEach(track => track.stop()); calibrate.textContent = 'Calibrar novamente'; calibrate.disabled = !activationInput.checked; }
+    };
     const activatedOutput = makeToggle('settings-voice-activated-output', 'Ativar saída somente quando alguém falar', 'voiceActivatedOutput');
     activatedOutput.querySelector('input').onchange = () => {
       const enabled = activatedOutput.querySelector('input').checked;
