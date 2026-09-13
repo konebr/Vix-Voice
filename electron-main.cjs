@@ -1,10 +1,11 @@
-const { app, BrowserWindow, shell, session, Menu, Tray, nativeImage, desktopCapturer, dialog } = require('electron');
+const { app, BrowserWindow, shell, session, Menu, Tray, nativeImage, desktopCapturer, dialog, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const APP_URL = process.env.VIX_APP_URL || 'https://app.vix-voice.com.br/app/';
 const APP_ORIGIN = new URL(APP_URL).origin;
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
+const PRELOAD_PATH = path.join(__dirname, 'electron-preload.cjs');
 let mainWindow = null;
 let tray = null;
 let quitting = false;
@@ -22,6 +23,20 @@ function showMainWindow() {
   if (wasHidden) mainWindow.webContents.reloadIgnoringCache();
   mainWindow.show();
   mainWindow.focus();
+}
+
+function sendDesktopAction(action) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('vix-desktop-action', action);
+}
+
+function launchAtLoginEnabled() {
+  return app.isPackaged && app.getLoginItemSettings().openAtLogin;
+}
+
+function setLaunchAtLogin(enabled) {
+  if (!app.isPackaged) return;
+  app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath });
 }
 
 async function checkForUpdates(manual = false) {
@@ -59,7 +74,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1360, height: 840, minWidth: 960, minHeight: 620, show: false,
     autoHideMenuBar: true, backgroundColor: '#11141a', title: 'Vix Voice', icon: ICON_PATH,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, spellcheck: true }
+    webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, spellcheck: true }
   });
   mainWindow.loadURL(APP_URL);
   mainWindow.once('ready-to-show', () => mainWindow.show());
@@ -116,14 +131,25 @@ function configurePermissions() {
 function createTray() {
   tray = new Tray(nativeImage.createFromPath(ICON_PATH).resize({ width: 20, height: 20 }));
   tray.setToolTip('Vix Voice');
-  tray.setContextMenu(Menu.buildFromTemplate([
+  const refreshMenu = () => tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Abrir Vix Voice', click: showMainWindow },
+    { type: 'separator' },
+    { label: 'Silenciar ou ativar microfone', accelerator: 'CommandOrControl+Shift+M', click: () => sendDesktopAction('toggle-mute') },
+    { label: 'Silenciar ou ativar áudio', accelerator: 'CommandOrControl+Shift+D', click: () => sendDesktopAction('toggle-deafen') },
+    { type: 'separator' },
+    { label: 'Iniciar com o Windows', type: 'checkbox', checked: launchAtLoginEnabled(), click: item => { setLaunchAtLogin(item.checked); refreshMenu(); } },
     { label: 'Recarregar', click: () => mainWindow?.webContents.reloadIgnoringCache() },
     { label: 'Verificar atualizações', click: () => checkForUpdates(true) },
     { type: 'separator' },
     { label: 'Sair', click: () => { quitting = true; app.quit(); } }
   ]));
+  refreshMenu();
   tray.on('click', showMainWindow);
+}
+
+function registerDesktopShortcuts() {
+  globalShortcut.register('CommandOrControl+Shift+M', () => sendDesktopAction('toggle-mute'));
+  globalShortcut.register('CommandOrControl+Shift+D', () => sendDesktopAction('toggle-deafen'));
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -135,9 +161,10 @@ else {
     Menu.setApplicationMenu(null);
     createWindow();
     createTray();
+    registerDesktopShortcuts();
     configureAutoUpdates();
     app.on('activate', showMainWindow);
   });
-  app.on('before-quit', () => { quitting = true; });
+  app.on('before-quit', () => { quitting = true; globalShortcut.unregisterAll(); });
   app.on('window-all-closed', () => {});
 }

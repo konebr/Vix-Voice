@@ -12,6 +12,10 @@ assert.match(source, /setPermissionRequestHandler/, 'as permissões precisam de 
 assert.match(source, /setDisplayMediaRequestHandler/, 'o compartilhamento de tela deve usar o seletor nativo do aplicativo');
 assert.match(source, /requestSingleInstanceLock/, 'somente uma instância deve executar por vez');
 assert.match(source, /new Tray\(/, 'o aplicativo deve continuar disponível na bandeja');
+assert.match(source, /globalShortcut\.register\('CommandOrControl\+Shift\+M'/, 'o desktop deve oferecer atalho global para o microfone');
+assert.match(source, /globalShortcut\.register\('CommandOrControl\+Shift\+D'/, 'o desktop deve oferecer atalho global para o áudio recebido');
+assert.match(source, /setLoginItemSettings/, 'o usuário deve poder iniciar o Vix Voice com o Windows');
+assert.match(source, /preload:\s*PRELOAD_PATH/, 'a ponte desktop deve usar um preload isolado');
 assert.match(source, /wasHidden[\s\S]*reloadIgnoringCache/, 'reabrir uma janela oculta deve buscar a versão mais recente');
 assert.match(source, /electron-updater/, 'o aplicativo instalado deve usar o atualizador do electron-builder');
 assert.match(source, /checkForUpdates/, 'o aplicativo deve verificar novas versões');

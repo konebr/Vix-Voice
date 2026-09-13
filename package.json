@@ -31,6 +31,7 @@
     "asar": true,
     "files": [
       "electron-main.cjs",
+      "electron-preload.cjs",
       "package.json",
       "build/icon.png"
     ],
