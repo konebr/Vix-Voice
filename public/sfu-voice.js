@@ -84,14 +84,27 @@
       const stats = await item.track?.getRTCStatsReport?.().catch(() => null);
       if (stats) reports.push(stats);
     }
-    const latency = [], jitter = []; let lost = 0, received = 0;
-    for (const stats of reports) for (const report of stats.values()) {
-      if (report.type === 'remote-inbound-rtp' && Number.isFinite(report.roundTripTime)) latency.push(report.roundTripTime * 1000);
-      if (report.type === 'candidate-pair' && report.state === 'succeeded' && Number.isFinite(report.currentRoundTripTime)) latency.push(report.currentRoundTripTime * 1000);
-      if (report.type === 'inbound-rtp' && (!report.kind || report.kind === 'audio')) { if (Number.isFinite(report.jitter)) jitter.push(report.jitter * 1000); lost += Math.max(0, Number(report.packetsLost) || 0); received += Math.max(0, Number(report.packetsReceived) || 0); }
+    const selectedLatency = new Map(), fallbackLatency = new Map(), jitter = []; let lost = 0, received = 0, protocol = '';
+    for (const stats of reports) {
+      const selectedIds = new Set();
+      for (const report of stats.values()) if (report.type === 'transport' && report.selectedCandidatePairId) selectedIds.add(report.selectedCandidatePairId);
+      let selectedPair = null;
+      for (const report of stats.values()) {
+        if (report.type === 'candidate-pair' && report.state === 'succeeded' && (selectedIds.has(report.id) || report.nominated)) {
+          if (!selectedPair || selectedIds.has(report.id)) selectedPair = report;
+        }
+        if (report.type === 'remote-inbound-rtp' && Number.isFinite(report.roundTripTime)) fallbackLatency.set(report.id, report.roundTripTime * 1000);
+        if (report.type === 'inbound-rtp' && (!report.kind || report.kind === 'audio')) { if (Number.isFinite(report.jitter)) jitter.push(report.jitter * 1000); lost += Math.max(0, Number(report.packetsLost) || 0); received += Math.max(0, Number(report.packetsReceived) || 0); }
+      }
+      if (selectedPair && Number.isFinite(selectedPair.currentRoundTripTime)) {
+        selectedLatency.set(selectedPair.id, selectedPair.currentRoundTripTime * 1000);
+        const local = stats.get(selectedPair.localCandidateId), remote = stats.get(selectedPair.remoteCandidateId);
+        protocol = String(local?.relayProtocol || local?.protocol || remote?.protocol || protocol).toUpperCase();
+      }
     }
-    const average = values => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null, total = lost + received;
-    return { latency: average(latency), jitter: average(jitter), loss: total ? Math.round(lost / total * 1000) / 10 : 0, route: 'SFU da VPS', peers: remoteAudio.size };
+    const median = values => { if (!values.length) return null; const ordered = [...values].sort((a, b) => a - b), middle = Math.floor(ordered.length / 2); return Math.round(ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2); };
+    const latency = selectedLatency.size ? median([...selectedLatency.values()]) : median([...fallbackLatency.values()]), total = lost + received;
+    return { latency, jitter: median(jitter), loss: total ? Math.round(lost / total * 1000) / 10 : 0, route: `SFU da VPS${protocol ? ` · ${protocol}` : ''}`, peers: remoteAudio.size };
   }
   globalThis.vixGetSfuMetrics = sfuMetrics;
 
