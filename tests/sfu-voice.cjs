@@ -33,7 +33,7 @@ test('group voice connects to one hosted SFU room', () => {
 
 test('SFU connection clears the legacy preparing state from the HUD', () => {
   assert.match(client, /voice-recovery-note/);
-  assert.match(client, /Voz conectada · SFU da VPS/);
+  assert.match(client, /Áudio hospedado no SFU da VPS/);
   assert.match(client, /Reconectando à VPS/);
 });
 
@@ -57,5 +57,13 @@ test('remote SFU audio is unlocked for browser and desktop playback', () => {
   assert.match(client, /globalThis\.unlockRemoteAudio/);
   assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
   assert.match(client, /document\.addEventListener\('pointerdown'/);
-  assert.match(html, /sfu-voice\.js\?v=stereo-1/);
+  assert.match(html, /sfu-voice\.js\?v=ping-1/);
+});
+
+
+test('connected SFU title leaves dedicated room for the latency badge', () => {
+  assert.match(client, /title\.textContent = connected \? \(screenStream \? 'Transmitindo' : 'Voz conectada'\)/);
+  assert.doesNotMatch(client, /Voz conectada · SFU da VPS/);
+  const css = fs.readFileSync('public/call-ui.css', 'utf8');
+  assert.match(css, /grid-template-columns:minmax\(0,1fr\) auto auto/);
 });

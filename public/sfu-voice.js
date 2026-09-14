@@ -8,7 +8,7 @@
       sdk.src = `/vendor/livekit-client.umd.js?v=2.22.3-recovery-1`;
       sdk.onload = () => {
         const adapter = document.createElement('script');
-        adapter.src = `/sfu-voice.js?v=stereo-1`;
+        adapter.src = `/sfu-voice.js?v=ping-1`;
         document.body.append(adapter);
       };
       sdk.onerror = () => {
@@ -215,7 +215,10 @@
     const panel = $('voice-state'), header = panel.querySelector('.call-panel-head');
     const title = header?.querySelector('strong'), dot = header?.querySelector('.call-status-dot');
     panel.querySelector('.voice-recovery-note')?.remove();
-    if (title) title.textContent = connected ? (screenStream ? 'Transmitindo · SFU da VPS' : 'Voz conectada · SFU da VPS') : phase === 'reconnecting' ? 'Reconectando à VPS…' : 'Conectando à VPS…';
+    if (title) {
+      title.textContent = connected ? (screenStream ? 'Transmitindo' : 'Voz conectada') : phase === 'reconnecting' ? 'Reconectando à VPS…' : 'Conectando à VPS…';
+      title.title = connected ? 'Áudio hospedado no SFU da VPS' : '';
+    }
     dot?.classList.toggle('is-connecting', !connected);
     dot?.classList.toggle('is-reconnecting', phase === 'reconnecting');
     dot?.classList.remove('is-offline');
