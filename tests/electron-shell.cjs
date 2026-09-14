@@ -17,6 +17,8 @@ assert.match(source, /globalShortcut\.register\('CommandOrControl\+Shift\+D'/, '
 assert.match(source, /setLoginItemSettings/, 'o usuário deve poder iniciar o Vix Voice com o Windows');
 assert.match(source, /preload:\s*PRELOAD_PATH/, 'a ponte desktop deve usar um preload isolado');
 assert.match(source, /wasHidden[\s\S]*reloadIgnoringCache/, 'reabrir uma janela oculta deve buscar a versão mais recente');
+assert.match(source, /desktop-version.*app\.getVersion/, 'cada versão desktop deve abrir uma URL própria e atualizada');
+assert.match(source, /defaultSession\.clearCache/, 'o aplicativo deve limpar recursos web antigos ao iniciar');
 assert.match(source, /electron-updater/, 'o aplicativo instalado deve usar o atualizador do electron-builder');
 assert.match(source, /autoplay-policy.*no-user-gesture-required/, 'o aplicativo deve liberar a reprodução da voz recebida');
 assert.match(source, /checkForUpdates/, 'o aplicativo deve verificar novas versões');

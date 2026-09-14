@@ -13,6 +13,12 @@ let quitting = false;
 let updateCheckRunning = false;
 let updateReady = false;
 
+function desktopAppUrl() {
+  const url = new URL(APP_URL);
+  url.searchParams.set('desktop-version', app.getVersion());
+  return url.toString();
+}
+
 function trusted(url) {
   try { return new URL(url).origin === APP_ORIGIN; } catch { return false; }
 }
@@ -77,7 +83,7 @@ function createWindow() {
     autoHideMenuBar: true, backgroundColor: '#11141a', title: 'Vix Voice', icon: ICON_PATH,
     webPreferences: { preload: PRELOAD_PATH, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, spellcheck: true }
   });
-  mainWindow.loadURL(APP_URL);
+  mainWindow.loadURL(desktopAppUrl());
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (!trusted(url)) { event.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); }
@@ -156,8 +162,9 @@ function registerDesktopShortcuts() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', showMainWindow);
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     app.setAppUserModelId('com.vixvoice.desktop');
+    await session.defaultSession.clearCache();
     configurePermissions();
     Menu.setApplicationMenu(null);
     createWindow();
