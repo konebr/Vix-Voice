@@ -167,12 +167,28 @@
   }
   window.renderVoiceChannelUsers = users => { voiceUsers = visibleVoiceUsers(users); renderVoiceChannels(); };
   async function loadVoiceChannels(forceFirst = false) {
-    if (!state.server) return; const result = await api(`/api/servers/${state.server.id}/voice-channels`); voiceChannels = result.channels;
-    const selected = !forceFirst && voiceChannels.find(channel => channel.id === selectedVoiceChannel.id); selectedVoiceChannel = selected || voiceChannels[0] || { id: 'Geral', name: 'Geral' }; renderVoiceChannels(); await refreshVoiceUsers();
+    if (!state.server) return;
+    const serverId = state.server.id;
+    try {
+      const result = await api(`/api/servers/${serverId}/voice-channels`);
+      if (state.server?.id !== serverId) return;
+      voiceChannels = Array.isArray(result.channels) ? result.channels : [];
+      const selected = !forceFirst && voiceChannels.find(channel => channel.id === selectedVoiceChannel.id);
+      selectedVoiceChannel = selected || voiceChannels[0] || { id: 'Geral', name: 'Geral' };
+      renderVoiceChannels();
+      await refreshVoiceUsers();
+    } catch (error) {
+      console.warn('Não foi possível carregar as salas de voz.', error);
+      if (!voiceChannels.length) setTimeout(() => state.server?.id === serverId && loadVoiceChannels(forceFirst), 1500);
+    }
   }
   window.reloadVoiceChannels = () => loadVoiceChannels(true);
   const baseStopVoice = stopVoice;
   stopVoice = () => { voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity?.id); baseStopVoice(); renderVoiceChannels(); };
   const baseLoadServer = loadServer;
-  loadServer = async server => { if (state.server?.id !== server.id && microphoneStream) stopVoice(); await baseLoadServer(server); await loadVoiceChannels(true); };
+  loadServer = async server => { if (state.server?.id !== server.id && microphoneStream) stopVoice(); await baseLoadServer(server); };
+  document.addEventListener('vix:server-loaded', event => {
+    if (event.detail?.serverId === state.server?.id) loadVoiceChannels(true);
+  });
+  if (state.server) loadVoiceChannels(true);
 })();
