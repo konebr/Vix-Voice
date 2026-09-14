@@ -25,17 +25,18 @@ const paths={
   chevron:'<path d="m6 9 6 6 6-6"/>',
   more:'<circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/>'
 };
-window.vixIcon=(name,size=18)=>`<svg class="vix-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.diamond}</svg>`;
-function place(node,name){if(!node||node.dataset.vixIconReady===name&&node.querySelector('svg'))return;node.dataset.vixIconReady=name;node.innerHTML=vixIcon(name)}
+const renderIcon=(name,size=18)=>`<svg class="vix-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.diamond}</svg>`;
+window.vixIcon=renderIcon;
+function place(node,name){if(!node||node.dataset.vixIconReady===name&&node.querySelector('svg'))return;node.dataset.vixIconReady=name;node.innerHTML=renderIcon(name)}
 function hydrate(root=document){
  const all=(selector)=>[...(root.matches?.(selector)?[root]:[]),...root.querySelectorAll?.(selector)||[]];
  all('.room-kind-icon').forEach(node=>place(node,node.closest('[data-room-type="voice"]')?'volume':'hash'));
  all('.channel .hash,.header>.hash,.welcome-icon').forEach(node=>place(node,'hash'));all('.channel .speaker').forEach(node=>place(node,'volume'));
  [['#add-channel','plus'],['#add-voice-channel','plus'],['.server.add','plus'],['.server-title button','chevron'],['#mute','mic'],['#leave','settings'],['#send','send'],['.room-settings-button','more']].forEach(([selector,name])=>all(selector).forEach(node=>place(node,name)));
  const headerIcons=['bell','users','search'];all('.header-actions').forEach(group=>[...group.children].forEach((node,index)=>place(node,headerIcons[index]||'more')));
- const community={events:['calendar','Eventos'],browse:['compass','Conferir canais'],members:['users','Membros'],boost:['diamond','Impulsos de servidor']};all('#community-tools button').forEach(node=>{const item=community[node.dataset.community];if(!item||node.dataset.vixIconReady)return;node.dataset.vixIconReady=item[0];node.innerHTML=`${vixIcon(item[0])}<span>${item[1]}</span>`});
+ const community={events:['calendar','Eventos'],browse:['compass','Conferir canais'],members:['users','Membros'],boost:['diamond','Impulsos de servidor']};all('#community-tools button').forEach(node=>{const item=community[node.dataset.community];if(!item||node.dataset.vixIconReady)return;node.dataset.vixIconReady=item[0];node.innerHTML=`${renderIcon(item[0])}<span>${item[1]}</span>`});
  all('.call-action-icon').forEach(node=>{const action=node.closest('button'),label=action?.getAttribute('aria-label')||'',active=action?.classList.contains('is-active'),name=label.includes('microfone')?(active?'mic':'mic-off'):label.includes('áudio')?(active?'headphones':'volume-off'):label.includes('Câmera')?(active?'video':'video-off'):label.includes('tela')?(active?'monitor-off':'monitor'):'phone-off';place(node,name)});
- all('#private-callbar>span').forEach(node=>place(node,'phone'));all('.private-call').forEach(node=>{if(node.querySelector('svg'))return;node.innerHTML=`${vixIcon('phone',16)}<span>Chamar</span>`});
+ all('#private-callbar>span').forEach(node=>place(node,'phone'));all('.private-call').forEach(node=>{if(node.querySelector('svg'))return;node.innerHTML=`${renderIcon('phone',16)}<span>Chamar</span>`});
 }
 hydrate();new MutationObserver(records=>records.forEach(record=>{if(record.target?.nodeType===1)hydrate(record.target);record.addedNodes.forEach(node=>node.nodeType===1&&hydrate(node))})).observe(document.body,{childList:true,subtree:true});
 })();
