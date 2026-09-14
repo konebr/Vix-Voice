@@ -218,6 +218,8 @@
     renderGroup(null, list);
     for (const category of voiceCategories.sort((a, b) => a.position - b.position)) renderGroup(category, list);
     if (!voiceChannels.length) { const empty = document.createElement('p'); empty.className = 'empty-channel-list'; empty.textContent = 'Nenhuma sala de voz'; list.append(empty); }
+    if (!activeUsers.isConnected) { activeUsers.replaceChildren(); activeUsers.hidden = true; list.append(activeUsers); }
+    else activeUsers.hidden = false;
   }
   window.renderVoiceChannelUsers = users => { voiceUsers = visibleVoiceUsers(users); renderVoiceChannels(); };
   async function loadVoiceChannels(forceFirst = false) {

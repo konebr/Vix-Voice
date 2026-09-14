@@ -77,6 +77,8 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(management, /Canais e categorias/);
   assert.match(management, /Criar categoria/);
   assert.match(management, /Sem categoria/);
+  assert.match(management, /if \(!activeUsers\.isConnected\)/);
+  assert.match(app, /const list=\$\('voice-users'\);if\(!list\|\|!microphoneStream/);
   assert.match(app, /custom-channel-category/);
   assert.match(styles, /\.custom-channel-category/);
 });
