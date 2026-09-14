@@ -137,17 +137,17 @@
     const categories = document.createElement('section'); categories.className = 'management-card channel-organizer'; categories.innerHTML = '<h2>Categorias</h2><p>Crie seções personalizadas para organizar as salas do servidor.</p>';
     for (const category of management.categories || []) {
       const row = document.createElement('div'); row.className = 'management-row category-management-row'; const color = document.createElement('input'); color.type = 'color'; color.value = category.color || '#949cf7'; color.title = 'Cor da categoria';
-      const copy = document.createElement('div'); copy.className = 'management-row-copy'; const name = document.createElement('strong'); name.textContent = category.name; const detail = document.createElement('small'); detail.textContent = category.type === 'voice' ? 'Categoria de voz' : 'Categoria de texto'; copy.append(name, detail);
+      const copy = document.createElement('div'); copy.className = 'management-row-copy'; const name = document.createElement('strong'); name.textContent = category.name; const detail = document.createElement('small'); detail.textContent = 'Categoria para canais de texto e voz'; copy.append(name, detail);
       const rename = button('Editar'); rename.onclick = async () => { const next = await vixPrompt('Nome da categoria:', category.name, { title: 'Personalizar categoria' }); if (!next) return; try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ name: next, color: color.value, position: category.position }) }); await reloadManagement('voice'); await loadServer(state.server); } catch (error) { vixAlert(error.message); } };
       color.onchange = async () => { try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ name: category.name, color: color.value, position: category.position }) }); await reloadManagement('voice'); await loadServer(state.server); } catch (error) { vixAlert(error.message); } };
       const remove = button('Excluir', 'danger-button'); remove.onclick = async () => { if (!await vixConfirm(`Excluir a categoria ${category.name}? As salas ficarão sem categoria.`, { title: 'Excluir categoria', confirmText: 'Excluir' })) return; try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'DELETE' }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (error) { vixAlert(error.message); } };
       row.append(color, copy, rename, remove); categories.append(row);
     }
     if (management.capabilities.manageChannels) {
-      const form = document.createElement('form'); form.className = 'new-channel-form category-create-form'; const input = document.createElement('input'); input.placeholder = 'Nome da categoria'; input.maxLength = 32; input.required = true; const type = document.createElement('select'); type.innerHTML = '<option value="text">Texto</option><option value="voice">Voz</option>'; const color = document.createElement('input'); color.type = 'color'; color.value = '#949cf7'; const create = button('Criar categoria', 'primary-button'); create.type = 'submit'; const error = document.createElement('p'); error.className = 'management-error'; error.hidden = true; form.append(input, type, color, create, error); form.onsubmit = async event => { event.preventDefault(); try { await api(`/api/servers/${state.server.id}/categories`, { method: 'POST', body: JSON.stringify({ name: input.value, type: type.value, color: color.value }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (caught) { showError(error, caught); } }; categories.append(form);
+      const form = document.createElement('form'); form.className = 'new-channel-form category-create-form'; const input = document.createElement('input'); input.placeholder = 'Nome da categoria'; input.maxLength = 32; input.required = true; const color = document.createElement('input'); color.type = 'color'; color.value = '#949cf7'; const create = button('Criar categoria', 'primary-button'); create.type = 'submit'; const error = document.createElement('p'); error.className = 'management-error'; error.hidden = true; form.append(input, color, create, error); form.onsubmit = async event => { event.preventDefault(); try { await api(`/api/servers/${state.server.id}/categories`, { method: 'POST', body: JSON.stringify({ name: input.value, color: color.value }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (caught) { showError(error, caught); } }; categories.append(form);
     }
     box.append(categories);
-    const categorySelect = (type, selected) => { const select = document.createElement('select'); select.className = 'channel-category-select'; const loose = document.createElement('option'); loose.value = ''; loose.textContent = 'Sem categoria'; select.append(loose); for (const category of (management.categories || []).filter(item => item.type === type)) { const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; select.append(option); } select.value = selected || ''; return select; };
+    const categorySelect = (_type, selected) => { const select = document.createElement('select'); select.className = 'channel-category-select'; const loose = document.createElement('option'); loose.value = ''; loose.textContent = 'Sem categoria'; select.append(loose); for (const category of management.categories || []) { const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; select.append(option); } select.value = selected || ''; return select; };
     const roomCard = (type, title) => {
       const card = document.createElement('section'); card.className = 'management-card channel-organizer'; const heading = document.createElement('h2'); heading.textContent = title; card.append(heading); const items = type === 'text' ? management.textChannels || [] : management.voiceChannels || [];
       for (const channel of items) {
@@ -192,15 +192,29 @@
     return users.filter(user => user.user_id !== state.identity?.id || Boolean(microphoneStream && voiceRoomConnected));
   }
   function renderVoiceChannels() {
-    let list = $('voice-channel-list');
-    if (!list) { list = document.createElement('div'); list.id = 'voice-channel-list'; $('voice-channel').before(list); $('voice-channel').hidden = true; }
+    const list = $('text-channels');
+    if (!list) return;
+    $('add-channel')?.closest('.category')?.setAttribute('hidden', '');
+    $('add-voice-channel')?.closest('.category')?.setAttribute('hidden', '');
+    $('voice-channel').hidden = true;
+    $('voice-channel-list')?.remove();
     let activeUsers = $('voice-users');
     if (!activeUsers) { activeUsers = document.createElement('div'); activeUsers.id = 'voice-users'; activeUsers.className = 'voice-users'; }
     list.replaceChildren();
+    const categories = (voiceCategories.length ? voiceCategories : state.categories || []).sort((a, b) => a.position - b.position), categoryIds = new Set(categories.map(category => category.id));
     const renderGroup = (category, parent) => {
-      if (category) { const heading = document.createElement('div'); heading.className = 'custom-channel-category'; heading.style.setProperty('--category-color', category.color || '#949cf7'); const arrow = document.createElement('span'); arrow.textContent = '⌄'; const label = document.createElement('strong'); label.textContent = category.name; heading.append(arrow, label); parent.append(heading); }
-      const channels = voiceChannels.filter(channel => (channel.category_id || '') === (category?.id || '')).sort((a, b) => a.position - b.position);
-      for (const channel of channels) {
+      if (category) { const heading = document.createElement('div'); heading.className = 'custom-channel-category'; heading.style.setProperty('--category-color', category.color || '#949cf7'); const arrow = document.createElement('span'); arrow.textContent = '⌄'; const label = document.createElement('strong'); label.textContent = category.name; heading.append(arrow, label); if (state.server?.capabilities?.manageChannels) { const add = button('+', 'category-add-room'); add.title = `Adicionar canal em ${category.name}`; add.onclick = () => openManagement('voice'); heading.append(add); } parent.append(heading); }
+      const categoryId = category?.id || '';
+      const belongs = channel => category ? (channel.category_id || '') === categoryId : !channel.category_id || !categoryIds.has(channel.category_id);
+      const textRooms = (state.textChannels || []).filter(belongs).sort((a, b) => a.position - b.position);
+      for (const channel of textRooms) {
+        const channelButton = button('', `channel room-channel${state.channel === channel.name ? ' active' : ''}`); channelButton.dataset.roomType = 'text'; channelButton.dataset.channel = channel.name;
+        const icon = document.createElement('span'); icon.className = 'room-kind-icon'; icon.textContent = '#'; const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name; channelButton.append(icon, name);
+        if (state.server?.capabilities?.manageChannels) { const gear = document.createElement('span'); gear.className = 'room-settings-button'; gear.textContent = '•••'; gear.title = 'Configurações da sala'; gear.onclick = event => { event.stopPropagation(); openChannelSettings(channel.name); }; channelButton.append(gear); }
+        channelButton.onclick = () => { state.channel = channel.name; renderVoiceChannels(); renderMessages(); closeMobileChannels?.(); }; parent.append(channelButton);
+      }
+      const voiceRooms = voiceChannels.filter(belongs).sort((a, b) => a.position - b.position);
+      for (const channel of voiceRooms) {
         const block = document.createElement('div'); block.className = 'voice-channel-block';
         const users = voiceUsers.filter(user => user.channel === channel.id);
         const channelButton = button('', `channel room-channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`); channelButton.dataset.roomType = 'voice';
@@ -216,11 +230,12 @@
       }
     };
     renderGroup(null, list);
-    for (const category of voiceCategories.sort((a, b) => a.position - b.position)) renderGroup(category, list);
-    if (!voiceChannels.length) { const empty = document.createElement('p'); empty.className = 'empty-channel-list'; empty.textContent = 'Nenhuma sala de voz'; list.append(empty); }
-    if (!activeUsers.isConnected) { activeUsers.replaceChildren(); activeUsers.hidden = true; list.append(activeUsers); }
+    for (const category of categories) renderGroup(category, list);
+    if (!(state.textChannels || []).length && !voiceChannels.length) { const empty = document.createElement('p'); empty.className = 'empty-channel-list'; empty.textContent = 'Nenhum canal criado'; list.append(empty); }
+    if (!list.contains(activeUsers)) { activeUsers.replaceChildren(); activeUsers.hidden = true; list.append(activeUsers); }
     else activeUsers.hidden = false;
   }
+  renderChannels = channels => { state.textChannels = (channels || []).map(item => typeof item === 'string' ? { name: item, category_id: '', position: 0, topic: '' } : item); renderVoiceChannels(); };
   window.renderVoiceChannelUsers = users => { voiceUsers = visibleVoiceUsers(users); renderVoiceChannels(); };
   async function loadVoiceChannels(forceFirst = false) {
     if (!state.server) return;
