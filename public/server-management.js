@@ -1,8 +1,8 @@
 (() => {
-  let management = null, voiceChannels = [], voiceUsers = [];
+  let management = null, voiceChannels = [], voiceCategories = [], voiceUsers = [];
   const modal = document.createElement('section');
   modal.id = 'server-management'; modal.className = 'management-modal'; modal.hidden = true;
-  modal.innerHTML = '<div class="management-shell"><aside><div class="management-server"><span id="management-icon"></span><div><strong id="management-name"></strong><small id="management-role"></small></div></div><label class="management-search"><span>Buscar</span><input id="management-search" type="search" placeholder="Buscar configuração" autocomplete="off"></label><small class="management-nav-label">CONFIGURAÇÕES</small><nav><button data-tab="overview" class="selected">Visão geral</button><button data-tab="roles">Cargos e permissões</button><button data-tab="access">Acessos por canal</button><button data-tab="security">Segurança</button><button data-tab="invites">Convites</button><button data-tab="voice">Canais de voz</button><button data-tab="members">Membros</button><button data-tab="bans">Banimentos</button><button data-tab="audit">Registro de auditoria</button></nav></aside><main><header><div><small>CONFIGURAÇÕES DO SERVIDOR</small><h1 id="management-title">Visão geral</h1><p id="management-subtitle">Identidade, atividade e controle do seu servidor.</p></div><button id="management-close" aria-label="Fechar">×</button></header><div id="management-content"></div></main></div>';
+  modal.innerHTML = '<div class="management-shell"><aside><div class="management-server"><span id="management-icon"></span><div><strong id="management-name"></strong><small id="management-role"></small></div></div><label class="management-search"><span>Buscar</span><input id="management-search" type="search" placeholder="Buscar configuração" autocomplete="off"></label><small class="management-nav-label">CONFIGURAÇÕES</small><nav><button data-tab="overview" class="selected">Visão geral</button><button data-tab="roles">Cargos e permissões</button><button data-tab="access">Acessos por canal</button><button data-tab="security">Segurança</button><button data-tab="invites">Convites</button><button data-tab="voice">Canais e categorias</button><button data-tab="members">Membros</button><button data-tab="bans">Banimentos</button><button data-tab="audit">Registro de auditoria</button></nav></aside><main><header><div><small>CONFIGURAÇÕES DO SERVIDOR</small><h1 id="management-title">Visão geral</h1><p id="management-subtitle">Identidade, atividade e controle do seu servidor.</p></div><button id="management-close" aria-label="Fechar">×</button></header><div id="management-content"></div></main></div>';
   document.body.append(modal);
   const inviteModal = document.createElement('section'); inviteModal.className = 'server-invite-modal'; inviteModal.hidden = true; inviteModal.innerHTML = '<div class="server-invite-card" role="dialog" aria-modal="true" aria-labelledby="server-invite-title"><button class="server-invite-close" aria-label="Fechar">×</button><span class="server-invite-logo"></span><small>CONVIDAR AMIGOS PARA</small><h2 id="server-invite-title"></h2><p>Compartilhe este link. A pessoa poderá entrar pelo navegador ou pelo aplicativo.</p><label>LINK DO CONVITE<div><input readonly><button>Copiar</button></div></label><footer><span>Válido por 7 dias</span><button class="server-invite-manage">Configurar convites</button></footer></div>'; document.body.append(inviteModal);
   const content = () => $('management-content');
@@ -133,14 +133,35 @@
   }
 
   function renderVoiceManagement() {
-    $('management-title').textContent = 'Canais de voz'; const box = content(); box.replaceChildren();
-    const card = document.createElement('section'); card.className = 'management-card'; const title = document.createElement('h2'); title.textContent = 'Salas de conversa'; card.append(title);
-    for (const channel of management.voiceChannels) card.append(channelRow(channel));
-    if (management.capabilities.manageChannels) {
-      const form = document.createElement('form'); form.className = 'new-channel-form'; const input = document.createElement('input'); input.placeholder = 'Nome do novo canal'; input.maxLength = 32; input.required = true; const create = button('Criar canal', 'primary-button'); create.type = 'submit'; const error = document.createElement('p'); error.className = 'management-error'; error.hidden = true; form.append(input, create, error);
-      form.onsubmit = async event => { event.preventDefault(); try { await api(`/api/servers/${state.server.id}/voice-channels`, { method: 'POST', body: JSON.stringify({ name: input.value }) }); await reloadManagement('voice'); await loadVoiceChannels(); } catch (caught) { showError(error, caught); } }; card.append(form);
+    $('management-title').textContent = 'Canais e categorias'; const box = content(); box.replaceChildren();
+    const categories = document.createElement('section'); categories.className = 'management-card channel-organizer'; categories.innerHTML = '<h2>Categorias</h2><p>Crie seções personalizadas para organizar as salas do servidor.</p>';
+    for (const category of management.categories || []) {
+      const row = document.createElement('div'); row.className = 'management-row category-management-row'; const color = document.createElement('input'); color.type = 'color'; color.value = category.color || '#949cf7'; color.title = 'Cor da categoria';
+      const copy = document.createElement('div'); copy.className = 'management-row-copy'; const name = document.createElement('strong'); name.textContent = category.name; const detail = document.createElement('small'); detail.textContent = category.type === 'voice' ? 'Categoria de voz' : 'Categoria de texto'; copy.append(name, detail);
+      const rename = button('Editar'); rename.onclick = async () => { const next = await vixPrompt('Nome da categoria:', category.name, { title: 'Personalizar categoria' }); if (!next) return; try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ name: next, color: color.value, position: category.position }) }); await reloadManagement('voice'); await loadServer(state.server); } catch (error) { vixAlert(error.message); } };
+      color.onchange = async () => { try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'PATCH', body: JSON.stringify({ name: category.name, color: color.value, position: category.position }) }); await reloadManagement('voice'); await loadServer(state.server); } catch (error) { vixAlert(error.message); } };
+      const remove = button('Excluir', 'danger-button'); remove.onclick = async () => { if (!await vixConfirm(`Excluir a categoria ${category.name}? As salas ficarão sem categoria.`, { title: 'Excluir categoria', confirmText: 'Excluir' })) return; try { await api(`/api/servers/${state.server.id}/categories/${category.id}`, { method: 'DELETE' }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (error) { vixAlert(error.message); } };
+      row.append(color, copy, rename, remove); categories.append(row);
     }
-    box.append(card);
+    if (management.capabilities.manageChannels) {
+      const form = document.createElement('form'); form.className = 'new-channel-form category-create-form'; const input = document.createElement('input'); input.placeholder = 'Nome da categoria'; input.maxLength = 32; input.required = true; const type = document.createElement('select'); type.innerHTML = '<option value="text">Texto</option><option value="voice">Voz</option>'; const color = document.createElement('input'); color.type = 'color'; color.value = '#949cf7'; const create = button('Criar categoria', 'primary-button'); create.type = 'submit'; const error = document.createElement('p'); error.className = 'management-error'; error.hidden = true; form.append(input, type, color, create, error); form.onsubmit = async event => { event.preventDefault(); try { await api(`/api/servers/${state.server.id}/categories`, { method: 'POST', body: JSON.stringify({ name: input.value, type: type.value, color: color.value }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (caught) { showError(error, caught); } }; categories.append(form);
+    }
+    box.append(categories);
+    const categorySelect = (type, selected) => { const select = document.createElement('select'); select.className = 'channel-category-select'; const loose = document.createElement('option'); loose.value = ''; loose.textContent = 'Sem categoria'; select.append(loose); for (const category of (management.categories || []).filter(item => item.type === type)) { const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; select.append(option); } select.value = selected || ''; return select; };
+    const roomCard = (type, title) => {
+      const card = document.createElement('section'); card.className = 'management-card channel-organizer'; const heading = document.createElement('h2'); heading.textContent = title; card.append(heading); const items = type === 'text' ? management.textChannels || [] : management.voiceChannels || [];
+      for (const channel of items) {
+        const row = document.createElement('div'); row.className = 'management-row'; const icon = document.createElement('span'); icon.className = 'management-channel-icon'; icon.textContent = type === 'text' ? '#' : '◖'; const copy = document.createElement('div'); copy.className = 'management-row-copy'; const name = document.createElement('strong'); name.textContent = channel.name; const detail = document.createElement('small'); detail.textContent = type === 'text' ? (channel.topic || 'Canal de texto') : 'Canal de voz'; copy.append(name, detail); const select = categorySelect(type, channel.category_id);
+        select.onchange = async () => { try { const path = type === 'text' ? `channels/${encodeURIComponent(channel.name)}` : `voice-channels/${channel.id}`; await api(`/api/servers/${state.server.id}/${path}`, { method: 'PATCH', body: JSON.stringify({ name: channel.name, category_id: select.value, topic: channel.topic || '', position: channel.position || 0 }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (error) { vixAlert(error.message); } };
+        const edit = button('Personalizar'); edit.onclick = async () => { const next = await vixPrompt('Novo nome da sala:', channel.name, { title: 'Personalizar sala' }); if (!next) return; let topic = channel.topic || ''; if (type === 'text') { const nextTopic = await vixPrompt('Tópico ou descrição da sala:', topic, { title: 'Descrição da sala' }); if (nextTopic !== null) topic = nextTopic; } try { const path = type === 'text' ? `channels/${encodeURIComponent(channel.name)}` : `voice-channels/${channel.id}`; await api(`/api/servers/${state.server.id}/${path}`, { method: 'PATCH', body: JSON.stringify({ name: next, category_id: select.value, topic, position: channel.position || 0 }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (error) { vixAlert(error.message); } };
+        const remove = button('Excluir', 'danger-button'); remove.onclick = async () => { if (!await vixConfirm(`Excluir ${type === 'text' ? '#' : ''}${channel.name}?`, { title: 'Excluir sala', confirmText: 'Excluir' })) return; try { const path = type === 'text' ? `channels/${encodeURIComponent(channel.name)}` : `voice-channels/${channel.id}`; await api(`/api/servers/${state.server.id}/${path}`, { method: 'DELETE' }); if (type === 'voice' && selectedVoiceChannel.id === channel.id && microphoneStream) stopVoice(); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(true); } catch (error) { vixAlert(error.message); } };
+        row.append(icon, copy, select, edit, remove); card.append(row);
+      }
+      if (!items.length) { const empty = document.createElement('p'); empty.textContent = 'Nenhuma sala criada. Você pode deixar esta seção vazia.'; card.append(empty); }
+      if (management.capabilities.manageChannels) { const form = document.createElement('form'); form.className = 'new-channel-form'; const input = document.createElement('input'); input.placeholder = `Nome da nova sala de ${type === 'text' ? 'texto' : 'voz'}`; input.maxLength = 32; input.required = true; const select = categorySelect(type, ''); const create = button('Criar sala', 'primary-button'); create.type = 'submit'; const error = document.createElement('p'); error.className = 'management-error'; error.hidden = true; form.append(input, select, create, error); form.onsubmit = async event => { event.preventDefault(); try { const endpoint = type === 'text' ? 'channels' : 'voice-channels'; await api(`/api/servers/${state.server.id}/${endpoint}`, { method: 'POST', body: JSON.stringify({ name: input.value, category_id: select.value }) }); await reloadManagement('voice'); await loadServer(state.server); await loadVoiceChannels(); } catch (caught) { showError(error, caught); } }; card.append(form); }
+      return card;
+    };
+    box.append(roomCard('text', 'Salas de texto'), roomCard('voice', 'Salas de voz'));
   }
 
   function renderMembers() {
@@ -150,7 +171,7 @@
     for (const member of management.members) card.append(memberRow(member)); box.append(card);
   }
   const tabs = { overview: renderOverview, roles: renderRoles, access: renderAccess, security: renderSecurity, invites: renderInvites, voice: renderVoiceManagement, members: renderMembers, bans: renderBans, audit: renderAudit };
-  const tabDescriptions = { overview: 'Identidade, atividade e controle do seu servidor.', roles: 'Organize responsabilidades e permissões com segurança.', access: 'Defina exceções de acesso para cada canal.', security: 'Proteja a comunidade contra abuso e entradas indevidas.', invites: 'Crie, acompanhe e revogue links de entrada.', voice: 'Organize as salas de conversa hospedadas na VPS.', members: 'Gerencie cargos, solicitações e ações de moderação.', bans: 'Revise pessoas impedidas de acessar o servidor.', audit: 'Acompanhe as alterações administrativas recentes.' };
+  const tabDescriptions = { overview: 'Identidade, atividade e controle do seu servidor.', roles: 'Organize responsabilidades e permissões com segurança.', access: 'Defina exceções de acesso para cada canal.', security: 'Proteja a comunidade contra abuso e entradas indevidas.', invites: 'Crie, acompanhe e revogue links de entrada.', voice: 'Crie categorias e personalize livremente salas de texto e voz.', members: 'Gerencie cargos, solicitações e ações de moderação.', bans: 'Revise pessoas impedidas de acessar o servidor.', audit: 'Acompanhe as alterações administrativas recentes.' };
   function selectTab(tab) { for (const item of modal.querySelectorAll('nav button')) item.classList.toggle('selected', item.dataset.tab === tab); $('management-subtitle').textContent = tabDescriptions[tab] || ''; tabs[tab](); }
   async function reloadManagement(tab = 'overview') { management = await api(`/api/servers/${state.server.id}/manage`); voiceChannels = management.voiceChannels; paintServerImage($('management-icon')); $('management-name').textContent = management.server.name; $('management-role').textContent = management.currentRole?.name || management.role; const permissionVisibility = { invites: management.capabilities.createInvites, bans: management.capabilities.banMembers, audit: management.capabilities.viewAudit, access: management.capabilities.manageChannelPermissions, security: management.capabilities.manageServer }; for (const [name, visible] of Object.entries(permissionVisibility)) { const item = modal.querySelector(`[data-tab="${name}"]`); item.dataset.permissionHidden = String(!visible); item.hidden = !visible; } $('management-search').value = ''; if (modal.querySelector(`[data-tab="${tab}"]`)?.hidden) tab = 'overview'; selectTab(tab); }
   async function openManagement(tab = 'overview') { if (!state.server) return; modal.hidden = false; content().innerHTML = '<div class="management-loading">Carregando configurações…</div>'; try { await reloadManagement(tab); $('management-search').focus(); } catch (error) { content().textContent = error.message; } }
@@ -173,25 +194,30 @@
   function renderVoiceChannels() {
     let list = $('voice-channel-list');
     if (!list) { list = document.createElement('div'); list.id = 'voice-channel-list'; $('voice-channel').before(list); $('voice-channel').hidden = true; }
-    // Preserve the shared roster before clearing the channel list. Once it is
-    // detached, getElementById cannot find it until it is appended again.
     let activeUsers = $('voice-users');
     if (!activeUsers) { activeUsers = document.createElement('div'); activeUsers.id = 'voice-users'; activeUsers.className = 'voice-users'; }
     list.replaceChildren();
-    for (const channel of voiceChannels) {
-      const block = document.createElement('div'); block.className = 'voice-channel-block';
-      const users = voiceUsers.filter(user => user.channel === channel.id);
-      const channelButton = button('', `channel room-channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`); channelButton.dataset.roomType = 'voice';
-      const icon = document.createElement('span'); icon.className = 'room-kind-icon'; icon.textContent = '◖';
-      const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name;
-      const occupancy = document.createElement('span'); occupancy.className = 'room-occupancy'; occupancy.textContent = users.length ? String(users.length) : '';
-      channelButton.append(icon, name, occupancy);
-      channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); await startVoice(); if (!microphoneStream) renderVoiceChannels(); closeMobileChannels?.(); };
-      block.append(channelButton);
-      if (selectedVoiceChannel.id === channel.id) { activeUsers.replaceChildren(...users.map(simpleVoiceUser)); block.append(activeUsers); }
-      else { const target = document.createElement('div'); target.className = 'voice-users passive'; target.append(...users.map(simpleVoiceUser)); block.append(target); }
-      list.append(block);
-    }
+    const renderGroup = (category, parent) => {
+      if (category) { const heading = document.createElement('div'); heading.className = 'custom-channel-category'; heading.style.setProperty('--category-color', category.color || '#949cf7'); const arrow = document.createElement('span'); arrow.textContent = '⌄'; const label = document.createElement('strong'); label.textContent = category.name; heading.append(arrow, label); parent.append(heading); }
+      const channels = voiceChannels.filter(channel => (channel.category_id || '') === (category?.id || '')).sort((a, b) => a.position - b.position);
+      for (const channel of channels) {
+        const block = document.createElement('div'); block.className = 'voice-channel-block';
+        const users = voiceUsers.filter(user => user.channel === channel.id);
+        const channelButton = button('', `channel room-channel voice-channel-button${selectedVoiceChannel.id === channel.id ? ' selected' : ''}`); channelButton.dataset.roomType = 'voice';
+        const icon = document.createElement('span'); icon.className = 'room-kind-icon'; icon.textContent = '◖';
+        const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name;
+        const occupancy = document.createElement('span'); occupancy.className = 'room-occupancy'; occupancy.textContent = users.length ? String(users.length) : '';
+        channelButton.append(icon, name, occupancy);
+        channelButton.onclick = async () => { if (selectedVoiceChannel.id === channel.id && microphoneStream && voiceRoomConnected) return; if (microphoneStream) stopVoice(); selectedVoiceChannel = channel; voiceUsers = voiceUsers.filter(user => user.user_id !== state.identity.id); renderVoiceChannels(); await startVoice(); if (!microphoneStream) renderVoiceChannels(); closeMobileChannels?.(); };
+        block.append(channelButton);
+        if (selectedVoiceChannel.id === channel.id) { activeUsers.replaceChildren(...users.map(simpleVoiceUser)); block.append(activeUsers); }
+        else { const target = document.createElement('div'); target.className = 'voice-users passive'; target.append(...users.map(simpleVoiceUser)); block.append(target); }
+        parent.append(block);
+      }
+    };
+    renderGroup(null, list);
+    for (const category of voiceCategories.sort((a, b) => a.position - b.position)) renderGroup(category, list);
+    if (!voiceChannels.length) { const empty = document.createElement('p'); empty.className = 'empty-channel-list'; empty.textContent = 'Nenhuma sala de voz'; list.append(empty); }
   }
   window.renderVoiceChannelUsers = users => { voiceUsers = visibleVoiceUsers(users); renderVoiceChannels(); };
   async function loadVoiceChannels(forceFirst = false) {
@@ -200,9 +226,9 @@
     try {
       const result = await api(`/api/servers/${serverId}/voice-channels`);
       if (state.server?.id !== serverId) return;
-      voiceChannels = Array.isArray(result.channels) ? result.channels : [];
+      voiceChannels = Array.isArray(result.channels) ? result.channels : []; voiceCategories = Array.isArray(result.categories) ? result.categories : [];
       const selected = !forceFirst && voiceChannels.find(channel => channel.id === selectedVoiceChannel.id);
-      selectedVoiceChannel = selected || voiceChannels[0] || { id: 'Geral', name: 'Geral' };
+      selectedVoiceChannel = selected || voiceChannels[0] || { id: '', name: '' };
       renderVoiceChannels();
       await refreshVoiceUsers();
     } catch (error) {

@@ -64,3 +64,19 @@ test('servidores aceitam foto personalizada e convite rápido compartilhável', 
   assert.doesNotMatch(html, /Clube de jogos|data-tip="Estúdio"/);
   assert.match(shell, /\.server\.add\{display:grid!important;place-items:center!important/);
 });
+
+test('categorias organizam livremente salas de texto e voz', () => {
+  const styles = fs.readFileSync('public/modern-shell.css', 'utf8');
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS channel_categories/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS channel_layout_state/);
+  assert.match(worker, /category_id TEXT DEFAULT/);
+  assert.match(worker, /topic TEXT DEFAULT/);
+  assert.match(worker, /CATEGORY_CREATE/);
+  assert.match(worker, /CATEGORY_DELETE/);
+  assert.doesNotMatch(worker, /servidor precisa manter pelo menos um canal de voz/);
+  assert.match(management, /Canais e categorias/);
+  assert.match(management, /Criar categoria/);
+  assert.match(management, /Sem categoria/);
+  assert.match(app, /custom-channel-category/);
+  assert.match(styles, /\.custom-channel-category/);
+});
