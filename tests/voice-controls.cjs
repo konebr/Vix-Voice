@@ -63,4 +63,8 @@ test('remote voices are downmixed to mono and reproduced in both headset channel
   assert.match(source, /source\.connect\(mono\)\.connect\(destination\)/);
   assert.match(source, /destination\.channelCount = 2/);
   assert.match(source, /audio\.srcObject = destination\.stream/);
+  assert.match(source, /globalThis\.vixCenterRemoteAudio = centerRemoteAudio/);
+  const sfu = fs.readFileSync('public/sfu-voice.js', 'utf8');
+  assert.match(sfu, /globalThis\.vixCenterRemoteAudio\?\.\(track, audio\)/);
+  assert.doesNotMatch(sfu, /(?<![.\w])centerRemoteAudio\(track, audio\)/);
 });

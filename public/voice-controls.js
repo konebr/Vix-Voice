@@ -37,6 +37,8 @@
       return null;
     }
   }
+  globalThis.vixCenterRemoteAudio = centerRemoteAudio;
+  globalThis.vixReleaseCenteredAudio = releaseCenteredAudio;
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const settings = readSettings(), prefs = preferences(peer.person.id), blocked = deafened || !!prefs.muted;

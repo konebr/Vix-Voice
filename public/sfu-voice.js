@@ -65,7 +65,7 @@
     for (const [sid, item] of remoteAudio) {
       if (item.track !== track) continue;
       for (const element of track.detach()) element.remove();
-      releaseCenteredAudio(item.centered);
+      globalThis.vixReleaseCenteredAudio?.(item.centered);
       item.audio.remove();
       remoteAudio.delete(sid);
     }
@@ -99,7 +99,7 @@
       audio.volume = Math.max(0, Math.min(1, Number(readSettings().outputVolume ?? 100) / 100));
       audio.muted = deafened;
     } else {
-      centered = centerRemoteAudio(track, audio);
+      centered = globalThis.vixCenterRemoteAudio?.(track, audio) || null;
       setAudioPreferences(participantId(participant), audio);
     }
     document.body.append(audio);
@@ -111,7 +111,7 @@
   function clearRemoteAudio() {
     for (const item of remoteAudio.values()) {
       for (const element of item.track.detach()) element.remove();
-      releaseCenteredAudio(item.centered);
+      globalThis.vixReleaseCenteredAudio?.(item.centered);
       item.audio.remove();
     }
     remoteAudio.clear();
