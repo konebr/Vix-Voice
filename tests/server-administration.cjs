@@ -48,3 +48,15 @@ test('painel moderno resume e localiza configurações administrativas', () => {
   assert.match(styles, /Painel administrativo moderno/);
   assert.match(styles, /management-summary/);
 });
+
+test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
+  const html = fs.readFileSync('public/app/index.html', 'utf8');
+  const shell = fs.readFileSync('public/modern-shell.css', 'utf8');
+  assert.match(worker, /addColumn\(c\.storage\.sql,'servers','image TEXT DEFAULT/);
+  assert.match(worker, /UPDATE servers SET name=\?,icon=\?,image=\?/);
+  assert.match(management, /readServerImage/);
+  assert.match(management, /openServerInvite/);
+  assert.match(management, /expires_hours: 168/);
+  assert.doesNotMatch(html, /Clube de jogos|data-tip="Estúdio"/);
+  assert.match(shell, /\.server\.add\{display:grid!important;place-items:center!important/);
+});
