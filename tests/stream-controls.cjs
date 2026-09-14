@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('public/stream-controls.js', 'utf8');
+const app = fs.readFileSync('public/app.js', 'utf8');
 const definition = source.slice(0, source.indexOf('\n\n(() =>'));
 
 test('screen quality maps to safe ideal constraints and keeps audio enabled by default', () => {
@@ -23,4 +24,8 @@ test('screen audio can be disabled and unknown quality falls back to 720p', () =
   const options = context.screenCaptureOptions();
   assert.equal(options.video.height.ideal, 720);
   assert.equal(options.audio, false);
+});
+
+test('screen sharing remains available when an older cached helper is missing', () => {
+  assert.match(app, /typeof prepareScreenStream==='function'\?prepareScreenStream\(captured\):captured/);
 });
