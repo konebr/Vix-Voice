@@ -43,3 +43,11 @@ test('LiveKit SDK loads before the SFU adapter', () => {
   const adapter = html.indexOf('sfu-voice.js');
   assert.ok(sdk > 0 && adapter > sdk);
 });
+
+test('remote SFU audio is unlocked for browser and desktop playback', () => {
+  assert.match(client, /room\?\.startAudio\?\.\(\)/);
+  assert.match(client, /globalThis\.unlockRemoteAudio/);
+  assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
+  assert.match(client, /document\.addEventListener\('pointerdown'/);
+  assert.match(html, /sfu-voice\.js\?v=audio-unlock-1/);
+});

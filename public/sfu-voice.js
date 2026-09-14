@@ -20,6 +20,7 @@
   let publishedScreenVideoTrack = null;
   let publishedScreenAudioTrack = null;
   let mediaSyncing = false;
+  let audioUnlockPending = false;
   const remoteAudio = new Map();
   const remoteScreen = new Map();
 
@@ -36,6 +37,20 @@
     audio.volume = Math.max(0, Math.min(1, Number(settings.outputVolume ?? 100) * Number(prefs.volume ?? 100) / 10000));
     audio.muted = deafened || Boolean(prefs.muted);
     if (audio.setSinkId && settings.output) audio.setSinkId(settings.output).catch(() => {});
+  }
+
+  async function resumeSfuAudio() {
+    await globalThis.unlockRemoteAudio?.();
+    await room?.startAudio?.();
+    const attempts = await Promise.allSettled([...remoteAudio.values()].map(item => item.audio.play()));
+    audioUnlockPending = attempts.some(result => result.status === 'rejected');
+    return !audioUnlockPending;
+  }
+
+  function requestAudioUnlock() {
+    if (audioUnlockPending) return;
+    audioUnlockPending = true;
+    vixToast?.('Clique uma vez no Vix Voice para liberar o áudio da sala.', 'warning');
   }
 
   async function sfuMetrics() {
@@ -97,7 +112,7 @@
       audio.muted = deafened;
     } else setAudioPreferences(participantId(participant), audio);
     document.body.append(audio);
-    audio.play().catch(() => {});
+    audio.play().catch(requestAudioUnlock);
     remoteAudio.set(publicationInfo.trackSid, { track, audio, participant, screen: publicationInfo.source === LK.Track.Source.ScreenShareAudio });
     if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) dispatchEvent(new CustomEvent('vix:stream-audio', { detail: { id: participantId(participant), audio } }));
   }
@@ -245,6 +260,9 @@
     connecting = true;
     desired = true;
     try {
+      // Start the browser audio context while this call still belongs to the
+      // user's click. LiveKit may finish connecting after that gesture expires.
+      const audioReady = globalThis.unlockRemoteAudio?.();
       if (!microphoneStream) microphoneStream = await requestMicrophone();
       $('voice-channel').classList.add('active');
       $('mute').disabled = false;
@@ -271,6 +289,8 @@
       room = nextRoom;
       await nextRoom.connect(credentials.url, credentials.token, { autoSubscribe: true });
       if (run !== generation || !desired) { await nextRoom.disconnect(); return; }
+      await audioReady;
+      await resumeSfuAudio().catch(requestAudioUnlock);
       await syncPublishedMedia();
       setConnectionUi(true);
       await publishPresence(serverId, channel.id);
@@ -303,6 +323,9 @@
   pollVoiceSignal = () => {};
 
   $('voice-channel').onclick = startVoice;
+  document.addEventListener('pointerdown', () => {
+    if (desired && (audioUnlockPending || room)) resumeSfuAudio().catch(requestAudioUnlock);
+  }, { passive: true });
   // The footer gear belongs to account settings. Voice disconnection is handled
   // by the dedicated "Sair da voz" control rendered inside the call panel.
   $('leave').onclick = () => openUserSettings();

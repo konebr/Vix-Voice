@@ -18,6 +18,7 @@ assert.match(source, /setLoginItemSettings/, 'o usuário deve poder iniciar o Vi
 assert.match(source, /preload:\s*PRELOAD_PATH/, 'a ponte desktop deve usar um preload isolado');
 assert.match(source, /wasHidden[\s\S]*reloadIgnoringCache/, 'reabrir uma janela oculta deve buscar a versão mais recente');
 assert.match(source, /electron-updater/, 'o aplicativo instalado deve usar o atualizador do electron-builder');
+assert.match(source, /autoplay-policy.*no-user-gesture-required/, 'o aplicativo deve liberar a reprodução da voz recebida');
 assert.match(source, /checkForUpdates/, 'o aplicativo deve verificar novas versões');
 assert.match(source, /update-downloaded/, 'o usuário deve ser avisado quando a atualização estiver pronta');
 assert.match(source, /quitAndInstall/, 'uma atualização pronta deve poder ser instalada pelo aplicativo');

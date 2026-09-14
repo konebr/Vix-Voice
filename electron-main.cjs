@@ -6,6 +6,7 @@ const APP_URL = process.env.VIX_APP_URL || 'https://app.vix-voice.com.br/app/';
 const APP_ORIGIN = new URL(APP_URL).origin;
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 const PRELOAD_PATH = path.join(__dirname, 'electron-preload.cjs');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 let mainWindow = null;
 let tray = null;
 let quitting = false;
