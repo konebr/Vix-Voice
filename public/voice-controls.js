@@ -9,36 +9,6 @@
   const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
   const shouldPlayRemoteAudio = (settings, muted, speaking) => !muted && (settings.voiceActivatedOutput === false || speaking);
   const isRemoteSpeaking = (contextState, rms, until, now) => contextState !== 'running' || rms > 0.012 || now < until;
-  function releaseCenteredAudio(output) {
-    if (!output) return;
-    try { output.source.disconnect(); output.mono.disconnect(); output.destination.disconnect(); } catch {}
-  }
-  function centerRemoteAudio(track, audio) {
-    const mediaTrack = track?.mediaStreamTrack || track;
-    if (!mediaTrack || mediaTrack.kind !== 'audio') return null;
-    try {
-      playbackContext ||= new AudioContext({ latencyHint: 'interactive', sampleRate: 48000 });
-      const source = playbackContext.createMediaStreamSource(new MediaStream([mediaTrack]));
-      const mono = playbackContext.createGain();
-      mono.channelCount = 1;
-      mono.channelCountMode = 'explicit';
-      mono.channelInterpretation = 'speakers';
-      const destination = playbackContext.createMediaStreamDestination();
-      destination.channelCount = 2;
-      destination.channelCountMode = 'explicit';
-      destination.channelInterpretation = 'speakers';
-      source.connect(mono).connect(destination);
-      audio.srcObject = destination.stream;
-      if (playbackContext.state !== 'running') playbackContext.resume().catch(() => {});
-      return { source, mono, destination };
-    } catch (error) {
-      console.warn('Não foi possível centralizar a saída de voz.', error);
-      audio.srcObject = new MediaStream([mediaTrack]);
-      return null;
-    }
-  }
-  globalThis.vixCenterRemoteAudio = centerRemoteAudio;
-  globalThis.vixReleaseCenteredAudio = releaseCenteredAudio;
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const settings = readSettings(), prefs = preferences(peer.person.id), blocked = deafened || !!prefs.muted;
@@ -90,8 +60,6 @@
     routeOutput(peer).catch(error => console.warn('Saída de áudio indisponível', error));
     peer.connection.addEventListener('track', event => {
       if (event.track.kind !== 'audio' || !event.streams[0]) return;
-      releaseCenteredAudio(peer.centeredAudio);
-      peer.centeredAudio = centerRemoteAudio(event.track, peer.audio);
       applyOutput(peer);
       try {
         const context = playbackContext || new AudioContext(), ownsContext = context !== playbackContext;
@@ -107,7 +75,6 @@
   };
   const baseClose = closeVoicePeer;
   closeVoicePeer = id => {
-    const peer = voicePeers.get(id); releaseCenteredAudio(peer?.centeredAudio);
     const meter = levels.get(id); meter?.source.disconnect(); if (meter?.ownsContext) meter.context.close().catch(() => {}); levels.delete(id);
     baseClose(id);
   };
