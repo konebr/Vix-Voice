@@ -54,3 +54,13 @@ test('every remote participant uses the unlocked context and suspended meters fa
   assert.equal(context.check('suspended', 0, 0, 100), true);
   assert.match(source, /const context = playbackContext \|\| new AudioContext\(\)/);
 });
+
+test('remote voices are downmixed to mono and reproduced in both headset channels', () => {
+  const source = fs.readFileSync('public/voice-controls.js', 'utf8');
+  assert.match(source, /mono\.channelCount = 1/);
+  assert.match(source, /mono\.channelCountMode = 'explicit'/);
+  assert.match(source, /mono\.channelInterpretation = 'speakers'/);
+  assert.match(source, /source\.connect\(mono\)\.connect\(destination\)/);
+  assert.match(source, /destination\.channelCount = 2/);
+  assert.match(source, /audio\.srcObject = destination\.stream/);
+});
