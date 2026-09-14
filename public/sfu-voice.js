@@ -24,11 +24,14 @@
   const remoteAudio = new Map();
   const remoteScreen = new Map();
 
-  const participantId = participant => String(participant?.identity || '');
+  const participantMetadata = participant => {
+    try { return JSON.parse(participant?.metadata || '{}'); }
+    catch { return {}; }
+  };
+  const participantId = participant => String(participantMetadata(participant).userId || participant?.identity || '').split(':')[0];
   const participantName = participant => participant?.name || participantId(participant) || 'Usuário';
   const participantColor = participant => {
-    try { return JSON.parse(participant?.metadata || '{}').color || '#5865f2'; }
-    catch { return '#5865f2'; }
+    return participantMetadata(participant).color || '#5865f2';
   };
   const participantPreferences = id => readSettings().participants?.[id] || {};
 
@@ -256,7 +259,7 @@
   async function connectSfu() {
     if (connecting || (room && room.state === LK.ConnectionState.Connected)) return;
     if (!state.server) return openPicker();
-    const run = ++generation, serverId = state.server.id, channel = { ...selectedVoiceChannel };
+    const run = ++generation, serverId = state.server.id, channel = { ...selectedVoiceChannel }, connectionId = crypto.randomUUID();
     connecting = true;
     desired = true;
     try {
@@ -269,7 +272,7 @@
       voiceServerId = serverId;
       setConnectionUi(false);
       const credentials = await api(`/api/servers/${encodeURIComponent(serverId)}/sfu-token`, {
-        method: 'POST', body: JSON.stringify({ channel: channel.id })
+        method: 'POST', body: JSON.stringify({ channel: channel.id, connection_id: connectionId })
       });
       globalThis.vixCanStream = credentials.canStream !== false;
       if (run !== generation || !desired) return;

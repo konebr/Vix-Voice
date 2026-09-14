@@ -15,6 +15,13 @@ test('backend issues short lived, room scoped SFU tokens', () => {
   assert.match(worker, /LIVEKIT_API_SECRET/);
 });
 
+test('each browser or desktop connection receives a unique SFU identity', () => {
+  assert.match(worker, /sub:`\$\{user\.id\}:\$\{connectionId\}`/);
+  assert.match(worker, /metadata:JSON\.stringify\(\{userId:user\.id/);
+  assert.match(client, /connection_id: connectionId/);
+  assert.match(client, /participantMetadata\(participant\)\.userId/);
+});
+
 test('group voice connects to one hosted SFU room', () => {
   assert.match(client, /new LK\.Room/);
   assert.match(client, /localParticipant\.publishTrack/);
@@ -49,5 +56,5 @@ test('remote SFU audio is unlocked for browser and desktop playback', () => {
   assert.match(client, /globalThis\.unlockRemoteAudio/);
   assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
   assert.match(client, /document\.addEventListener\('pointerdown'/);
-  assert.match(html, /sfu-voice\.js\?v=audio-unlock-1/);
+  assert.match(html, /sfu-voice\.js\?v=audio-multisession-1/);
 });
