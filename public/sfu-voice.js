@@ -8,7 +8,7 @@
       sdk.src = `/vendor/livekit-client.umd.js?v=2.22.3-recovery-1`;
       sdk.onload = () => {
         const adapter = document.createElement('script');
-        adapter.src = `/sfu-voice.js?v=audio-recovery-1`;
+        adapter.src = `/sfu-voice.js?v=stereo-1`;
         document.body.append(adapter);
       };
       sdk.onerror = () => {
@@ -174,7 +174,7 @@
     if (next && next !== publishedMicrophoneTrack) {
       const enabled = microphoneStream?.getAudioTracks?.()[0]?.enabled !== false;
       if (publication?.track) await room.localParticipant.unpublishTrack(publication.track, false).catch(() => {});
-      publication = await room.localParticipant.publishTrack(next, { source: LK.Track.Source.Microphone, dtx: true, red: true, audioPreset: LK.AudioPresets?.speech, forceStereo: false });
+      publication = await room.localParticipant.publishTrack(next, { source: LK.Track.Source.Microphone, dtx: true, red: true, audioPreset: LK.AudioPresets?.speech, forceStereo: true });
       publishedMicrophoneTrack = next;
       if (!enabled) await publication.mute();
     }

@@ -28,6 +28,7 @@ test('group voice connects to one hosted SFU room', () => {
   assert.match(client, /RoomEvent\.TrackSubscribed/);
   assert.match(client, /startVoice = connectSfu/);
   assert.doesNotMatch(client, /new RTCPeerConnection/);
+  assert.match(client, /forceStereo: true/);
 });
 
 test('SFU connection clears the legacy preparing state from the HUD', () => {
@@ -56,5 +57,5 @@ test('remote SFU audio is unlocked for browser and desktop playback', () => {
   assert.match(client, /globalThis\.unlockRemoteAudio/);
   assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
   assert.match(client, /document\.addEventListener\('pointerdown'/);
-  assert.match(html, /sfu-voice\.js\?v=audio-recovery-1/);
+  assert.match(html, /sfu-voice\.js\?v=stereo-1/);
 });
