@@ -55,7 +55,7 @@
   function paintCustom(values = customTheme()) { const root = document.documentElement; for (const [name,value] of Object.entries(values || {})) if (/^#[0-9a-f]{6}$/i.test(value)) root.style.setProperty(`--theme-${name}`, value); }
   function applyTheme(theme) { const id = themes.some(item => item[0] === theme) ? theme : 'dark'; document.documentElement.dataset.theme = id; if (id === 'custom') paintCustom(); else for (const name of ['bg','panel','accent']) document.documentElement.style.removeProperty(`--theme-${name}`); localStorage.setItem(themeKey, id); dispatchEvent(new CustomEvent('vix:theme-changed', { detail: { theme: id } })); }
   function saveCustomTheme(values) { localStorage.setItem(customThemeKey, JSON.stringify(values)); paintCustom(values); applyTheme('custom'); }
-  globalThis.vixThemes = themes; globalThis.vixCustomTheme = customTheme; globalThis.vixSaveCustomTheme = saveCustomTheme; globalThis.vixApplyTheme = applyTheme; applyTheme(localStorage.getItem(themeKey) || 'dark');
+  globalThis.vixThemes = themes; globalThis.vixCustomTheme = customTheme; globalThis.vixSaveCustomTheme = saveCustomTheme; globalThis.vixApplyTheme = applyTheme; applyTheme(localStorage.getItem(themeKey) || 'midnight');
   document.body.classList.toggle('vix-contrast', localStorage.getItem('vix-interface-contrast') === 'true');
 
   const bell = document.querySelector('.header-actions [title="Notificações"]');
