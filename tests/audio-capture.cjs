@@ -44,3 +44,11 @@ test('removed saved microphone falls back to the system default', async () => {
   assert.equal(calls[0].audio.deviceId.exact, 'removed-device');
   assert.equal(calls[1].audio.deviceId, undefined);
 });
+
+
+test('processed microphone is centered equally across stereo output', () => {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  assert.match(source, /centeredVoice\.channelCount=1/);
+  assert.match(source, /centeredVoice\.channelCountMode='explicit'/);
+  assert.match(source, /processed\.connect\(centeredVoice\);processed=centeredVoice/);
+});
