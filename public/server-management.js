@@ -2,7 +2,7 @@
   let management = null, voiceChannels = [], voiceUsers = [];
   const modal = document.createElement('section');
   modal.id = 'server-management'; modal.className = 'management-modal'; modal.hidden = true;
-  modal.innerHTML = '<div class="management-shell"><aside><div class="management-server"><span id="management-icon"></span><div><strong id="management-name"></strong><small id="management-role"></small></div></div><nav><button data-tab="overview" class="selected">Visão geral</button><button data-tab="roles">Cargos e permissões</button><button data-tab="access">Acessos por canal</button><button data-tab="security">Segurança</button><button data-tab="invites">Convites</button><button data-tab="voice">Canais de voz</button><button data-tab="members">Membros</button><button data-tab="bans">Banimentos</button><button data-tab="audit">Registro de auditoria</button></nav></aside><main><header><div><small>CONFIGURAÇÕES DO SERVIDOR</small><h1 id="management-title">Visão geral</h1></div><button id="management-close" aria-label="Fechar">×</button></header><div id="management-content"></div></main></div>';
+  modal.innerHTML = '<div class="management-shell"><aside><div class="management-server"><span id="management-icon"></span><div><strong id="management-name"></strong><small id="management-role"></small></div></div><label class="management-search"><span>Buscar</span><input id="management-search" type="search" placeholder="Buscar configuração" autocomplete="off"></label><small class="management-nav-label">CONFIGURAÇÕES</small><nav><button data-tab="overview" class="selected">Visão geral</button><button data-tab="roles">Cargos e permissões</button><button data-tab="access">Acessos por canal</button><button data-tab="security">Segurança</button><button data-tab="invites">Convites</button><button data-tab="voice">Canais de voz</button><button data-tab="members">Membros</button><button data-tab="bans">Banimentos</button><button data-tab="audit">Registro de auditoria</button></nav></aside><main><header><div><small>CONFIGURAÇÕES DO SERVIDOR</small><h1 id="management-title">Visão geral</h1><p id="management-subtitle">Identidade, atividade e controle do seu servidor.</p></div><button id="management-close" aria-label="Fechar">×</button></header><div id="management-content"></div></main></div>';
   document.body.append(modal);
   const content = () => $('management-content');
   const showError = (node, error) => { node.textContent = error.message; node.hidden = false; };
@@ -31,6 +31,15 @@
 
   function renderOverview() {
     $('management-title').textContent = 'Visão geral'; const box = content(); box.replaceChildren();
+    const summary = document.createElement('section'); summary.className = 'management-summary';
+    const summaries = [
+      ['Membros', management.members.length, 'Pessoas com acesso'],
+      ['Cargos', management.roles.length, 'Níveis de permissão'],
+      ['Canais', (management.textChannels?.length || 0) + (management.voiceChannels?.length || 0), 'Texto e voz'],
+      ['Proteção', Number(management.security?.anti_spam) ? 'Ativa' : 'Básica', Number(management.security?.require_approval) ? 'Entrada com aprovação' : 'Entrada por convite']
+    ];
+    for (const [label, value, detail] of summaries) { const item = document.createElement('article'); item.innerHTML = `<small>${label}</small><strong>${value}</strong><span>${detail}</span>`; summary.append(item); }
+    box.append(summary);
     const card = document.createElement('form'); card.className = 'management-card';
     const title = document.createElement('h2'); title.textContent = 'Identidade do servidor';
     const fields = document.createElement('div'); fields.className = 'identity-fields';
@@ -125,11 +134,14 @@
     for (const member of management.members) card.append(memberRow(member)); box.append(card);
   }
   const tabs = { overview: renderOverview, roles: renderRoles, access: renderAccess, security: renderSecurity, invites: renderInvites, voice: renderVoiceManagement, members: renderMembers, bans: renderBans, audit: renderAudit };
-  function selectTab(tab) { for (const item of modal.querySelectorAll('nav button')) item.classList.toggle('selected', item.dataset.tab === tab); tabs[tab](); }
-  async function reloadManagement(tab = 'overview') { management = await api(`/api/servers/${state.server.id}/manage`); voiceChannels = management.voiceChannels; $('management-icon').textContent = management.server.icon; $('management-name').textContent = management.server.name; $('management-role').textContent = management.currentRole?.name || management.role; modal.querySelector('[data-tab="invites"]').hidden = !management.capabilities.createInvites; modal.querySelector('[data-tab="bans"]').hidden = !management.capabilities.banMembers; modal.querySelector('[data-tab="audit"]').hidden = !management.capabilities.viewAudit; modal.querySelector('[data-tab="access"]').hidden = !management.capabilities.manageChannelPermissions; modal.querySelector('[data-tab="security"]').hidden = !management.capabilities.manageServer; if (modal.querySelector(`[data-tab="${tab}"]`)?.hidden) tab = 'overview'; selectTab(tab); }
-  async function openManagement(tab = 'overview') { if (!state.server) return; modal.hidden = false; content().innerHTML = '<div class="management-loading">Carregando configurações…</div>'; try { await reloadManagement(tab); } catch (error) { content().textContent = error.message; } }
+  const tabDescriptions = { overview: 'Identidade, atividade e controle do seu servidor.', roles: 'Organize responsabilidades e permissões com segurança.', access: 'Defina exceções de acesso para cada canal.', security: 'Proteja a comunidade contra abuso e entradas indevidas.', invites: 'Crie, acompanhe e revogue links de entrada.', voice: 'Organize as salas de conversa hospedadas na VPS.', members: 'Gerencie cargos, solicitações e ações de moderação.', bans: 'Revise pessoas impedidas de acessar o servidor.', audit: 'Acompanhe as alterações administrativas recentes.' };
+  function selectTab(tab) { for (const item of modal.querySelectorAll('nav button')) item.classList.toggle('selected', item.dataset.tab === tab); $('management-subtitle').textContent = tabDescriptions[tab] || ''; tabs[tab](); }
+  async function reloadManagement(tab = 'overview') { management = await api(`/api/servers/${state.server.id}/manage`); voiceChannels = management.voiceChannels; $('management-icon').textContent = management.server.icon; $('management-name').textContent = management.server.name; $('management-role').textContent = management.currentRole?.name || management.role; const permissionVisibility = { invites: management.capabilities.createInvites, bans: management.capabilities.banMembers, audit: management.capabilities.viewAudit, access: management.capabilities.manageChannelPermissions, security: management.capabilities.manageServer }; for (const [name, visible] of Object.entries(permissionVisibility)) { const item = modal.querySelector(`[data-tab="${name}"]`); item.dataset.permissionHidden = String(!visible); item.hidden = !visible; } $('management-search').value = ''; if (modal.querySelector(`[data-tab="${tab}"]`)?.hidden) tab = 'overview'; selectTab(tab); }
+  async function openManagement(tab = 'overview') { if (!state.server) return; modal.hidden = false; content().innerHTML = '<div class="management-loading">Carregando configurações…</div>'; try { await reloadManagement(tab); $('management-search').focus(); } catch (error) { content().textContent = error.message; } }
   $('management-close').onclick = () => { modal.hidden = true; }; modal.onclick = event => { if (event.target === modal) modal.hidden = true; };
+  modal.addEventListener('keydown', event => { if (event.key === 'Escape') { modal.hidden = true; document.querySelector('.server-title button')?.focus(); } });
   for (const item of modal.querySelectorAll('nav button')) item.onclick = () => selectTab(item.dataset.tab);
+  $('management-search').oninput = event => { const query = event.target.value.trim().toLocaleLowerCase('pt-BR'); for (const item of modal.querySelectorAll('nav button')) item.hidden = item.dataset.permissionHidden === 'true' || Boolean(query && !item.textContent.toLocaleLowerCase('pt-BR').includes(query)); };
   document.querySelector('.server-title button').onclick = () => openManagement();
   window.openServerManagement = openManagement;
 

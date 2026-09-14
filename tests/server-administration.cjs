@@ -38,3 +38,13 @@ test('antispam e transferência de propriedade possuem validações no servidor'
   assert.match(worker, /transactionSync/);
   assert.match(worker, /OWNERSHIP_TRANSFER/);
 });
+
+test('painel moderno resume e localiza configurações administrativas', () => {
+  const styles = fs.readFileSync('public/server-management.css', 'utf8');
+  assert.match(management, /management-summary/);
+  assert.match(management, /Buscar configuração/);
+  assert.match(management, /tabDescriptions/);
+  assert.match(management, /event\.key === 'Escape'/);
+  assert.match(styles, /Painel administrativo moderno/);
+  assert.match(styles, /management-summary/);
+});
