@@ -40,7 +40,7 @@ test('menções e digitação estão ligadas à interface e às notificações',
 });
 
 test('ativos do chat são carregados e participam da atualização automática', () => {
-  assert.match(html, /chat-realtime\.css\?v=ui-20260914-1/);
+  assert.match(html, /chat-realtime\.css\?v=ui-20260914-2/);
   assert.match(html, /chat-realtime\.js\?v=chat-2/);
   assert.ok(html.indexOf('settings-modern.js') < html.indexOf('chat-realtime.js'));
   assert.match(app, /'\/chat-realtime\.js'/);
@@ -66,7 +66,7 @@ test('respostas, reações e pesquisa usam dados persistentes do servidor', () =
 });
 
 test('interface carrega as ações depois da sincronização em tempo real', () => {
-  assert.match(html, /chat-actions\.css\?v=ui-20260914-1/);
+  assert.match(html, /chat-actions\.css\?v=ui-20260914-2/);
   assert.match(html, /chat-actions\.js\?v=chat-actions-2/);
   assert.ok(html.indexOf('chat-realtime.js') < html.indexOf('chat-actions.js'));
   assert.match(app, /'\/chat-actions\.js'/);

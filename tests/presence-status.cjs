@@ -26,6 +26,6 @@ test('presence preference is persisted and propagated to public and private list
   assert.match(client, /online.*idle.*dnd.*invisible/);
   assert.match(client, /300000/);
   assert.match(settings, /vixPresence\?\.effective/);
-  assert.match(html, /presence\.css\?v=ui-20260914-1/);
+  assert.match(html, /presence\.css\?v=ui-20260914-2/);
   assert.match(html, /presence\.js\?v=presence-1/);
 });

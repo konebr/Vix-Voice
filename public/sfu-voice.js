@@ -2,9 +2,25 @@
 (() => {
   const LK = globalThis.LivekitClient;
   if (!LK) {
-    console.error('SDK do servidor de voz não foi carregado.');
+    if (!globalThis.vixSfuSdkRetry) {
+      globalThis.vixSfuSdkRetry = true;
+      const sdk = document.createElement('script');
+      sdk.src = `/vendor/livekit-client.umd.js?v=2.22.3-recovery-1`;
+      sdk.onload = () => {
+        const adapter = document.createElement('script');
+        adapter.src = `/sfu-voice.js?v=audio-recovery-1`;
+        document.body.append(adapter);
+      };
+      sdk.onerror = () => {
+        $('voice-state').innerHTML = '<strong>Servidor de voz indisponível</strong>Recarregue o Vix Voice para tentar novamente.';
+      };
+      document.head.append(sdk);
+    } else {
+      $('voice-state').innerHTML = '<strong>Servidor de voz indisponível</strong>O módulo de voz não foi carregado.';
+    }
     return;
   }
+  globalThis.vixSfuReady = true;
 
   let room = null;
   let publication = null;
