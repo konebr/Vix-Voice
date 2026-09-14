@@ -54,6 +54,10 @@ test('servidores aceitam foto personalizada e convite rápido compartilhável', 
   const shell = fs.readFileSync('public/modern-shell.css', 'utf8');
   assert.match(worker, /addColumn\(c\.storage\.sql,'servers','image TEXT DEFAULT/);
   assert.match(worker, /UPDATE servers SET name=\?,icon=\?,image=\?/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS server_images/);
+  assert.match(worker, /INSERT OR REPLACE INTO server_images VALUES/);
+  assert.match(worker, /serverWithImage/);
+  assert.match(worker, /saved\.image!==image/);
   assert.match(management, /readServerImage/);
   assert.match(management, /openServerInvite/);
   assert.match(management, /expires_hours: 168/);
