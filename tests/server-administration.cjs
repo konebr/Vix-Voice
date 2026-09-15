@@ -90,4 +90,7 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(styles, /\.channel\.active,.channel\.selected\{border-color:var\(--vix-border\)/);
   assert.doesNotMatch(styles, /\.channel\.active,.channel\.selected\{[^}]*theme-accent/);
   assert.match(styles, /#text-channels\{margin-bottom:0;padding:0;border:0;border-radius:0;background:transparent\}/);
+  assert.match(management, /vix-collapsed-categories-/);
+  assert.match(management, /category-channel-group/);
+  assert.match(styles, /category-channel-group\.is-collapsed \.category-channel-rooms\{display:none\}/);
 });
