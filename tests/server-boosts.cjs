@@ -1,0 +1,24 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+test('impulsos beta persistem por conta e exibem níveis do servidor', () => {
+  const worker = fs.readFileSync('src/worker.js', 'utf8');
+  const app = fs.readFileSync('public/app.js', 'utf8');
+  const styles = fs.readFileSync('public/modern-shell.css', 'utf8');
+  const html = fs.readFileSync('public/app/index.html', 'utf8');
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS server_boosts\(user_id TEXT PRIMARY KEY/);
+  assert.match(worker, /\/boosts\$/);
+  assert.match(worker, /count>=14\?3:count>=7\?2:count>=2\?1:0/);
+  assert.match(worker, /SERVER_BOOST_TRANSFER/);
+  assert.match(worker, /request\.method==='DELETE'/);
+  assert.match(app, /function renderBoostPanel/);
+  assert.match(app, /Impulsionar este servidor/);
+  assert.match(app, /Retirar meu impulso/);
+  assert.match(app, /cada conta possui 1 impulso gratuito/);
+  assert.match(styles, /\.boost-dashboard\{/);
+  assert.match(styles, /\.boost-levels\{/);
+  assert.match(styles, /\.boost-supporters\{/);
+  assert.match(html, /modern-shell\.css\?v=boosts-1/);
+  assert.match(html, /app\.js\?v=boosts-1/);
+});

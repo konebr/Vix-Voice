@@ -597,6 +597,24 @@ Users.prototype.fetch=async function(request){
   return response;
 };
 
+// Impulsos beta: uma contribuição ativa por conta, transferível entre servidores.
+const serverBoostFetch=Servers.prototype.fetch;
+Servers.prototype.ensureServerBoosts=function(){this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_boosts(user_id TEXT PRIMARY KEY,server_id TEXT NOT NULL,created INTEGER NOT NULL,updated INTEGER NOT NULL)');this.c.storage.sql.exec('CREATE INDEX IF NOT EXISTS server_boosts_server ON server_boosts(server_id)')};
+Servers.prototype.boostSummary=function(serverId,user){
+  const boosts=[...this.c.storage.sql.exec('SELECT server_boosts.user_id,server_boosts.created,server_boosts.updated,COALESCE(member_profiles.name,"Membro") AS name,COALESCE(member_profiles.avatar,"") AS avatar,COALESCE(member_profiles.color,"#8b92a8") AS color FROM server_boosts LEFT JOIN member_profiles ON member_profiles.server_id=server_boosts.server_id AND member_profiles.user_id=server_boosts.user_id WHERE server_boosts.server_id=? ORDER BY server_boosts.created',serverId)];
+  const count=boosts.length,level=count>=14?3:count>=7?2:count>=2?1:0,nextTarget=level===0?2:level===1?7:level===2?14:14;
+  return {count,level,next_target:nextTarget,progress:level===3?100:Math.min(100,Math.round(count/nextTarget*100)),boosted_by_me:boosts.some(item=>item.user_id===user.id),boosters:boosts.map(({user_id,name,avatar,color,created})=>({user_id,name,avatar,color,created}))};
+};
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)\/boosts$/);
+  if(!match)return serverBoostFetch.call(this,request);
+  const user=await this.user(request);if(!user)return j({error:'Não autenticado'},401);const serverId=match[1];if(!this.member(serverId,user))return j({error:'Você precisa participar deste servidor para impulsioná-lo.'},403);this.ensureServerBoosts();
+  if(request.method==='GET')return j({boosts:this.boostSummary(serverId,user)});
+  if(request.method==='POST'){const existing=one(this.c.storage.sql.exec('SELECT server_id,created FROM server_boosts WHERE user_id=?',user.id)),now=Date.now();this.c.storage.sql.exec('INSERT OR REPLACE INTO server_boosts(user_id,server_id,created,updated) VALUES(?,?,?,?)',user.id,serverId,existing?.server_id===serverId?existing.created:now,now);this.audit?.(serverId,user,existing&&existing.server_id!==serverId?'SERVER_BOOST_TRANSFER':'SERVER_BOOST_ADD',user.id,user.name,'Impulso beta aplicado');return j({boosts:this.boostSummary(serverId,user),transferred_from:existing?.server_id&&existing.server_id!==serverId?existing.server_id:''})}
+  if(request.method==='DELETE'){this.c.storage.sql.exec('DELETE FROM server_boosts WHERE user_id=? AND server_id=?',user.id,serverId);this.audit?.(serverId,user,'SERVER_BOOST_REMOVE',user.id,user.name,'Impulso beta removido');return j({boosts:this.boostSummary(serverId,user)})}
+  return j({error:'Método inválido'},405);
+};
+
 // Dados e privacidade: preferências vinculadas à conta e exportação portátil.
 const privacyUsersFetch=Users.prototype.fetch;
 Users.prototype.ensurePrivacy=function(){this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_privacy_preferences(user_id TEXT PRIMARY KEY,friend_requests INTEGER,share_presence INTEGER,personalization INTEGER,updated INTEGER)')};
