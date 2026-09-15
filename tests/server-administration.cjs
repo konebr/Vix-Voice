@@ -81,7 +81,7 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(management, /Sem categoria/);
   assert.match(management, /Categoria para canais de texto e voz/);
   assert.match(management, /const textRooms/);
-  assert.match(management, /const voiceRooms/);
+  assert.match(management, /voiceRooms = voiceChannels/);
   assert.match(management, /if \(!list\.contains\(activeUsers\)\)/);
   assert.match(app, /const list=\$\('voice-users'\);if\(!list\|\|!microphoneStream/);
   assert.match(app, /custom-channel-category/);
@@ -92,5 +92,8 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(styles, /#text-channels\{margin-bottom:0;padding:0;border:0;border-radius:0;background:transparent\}/);
   assert.match(management, /vix-collapsed-categories-/);
   assert.match(management, /category-channel-group/);
+  assert.match(management, /category-room-count/);
+  assert.match(management, /aria-expanded/);
   assert.match(styles, /category-channel-group\.is-collapsed \.category-channel-rooms\{display:none\}/);
+  assert.match(styles, /Navegação compacta de categorias/);
 });

@@ -205,25 +205,23 @@
     let collapsedSaved = []; try { collapsedSaved = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch {} const collapsed = new Set(Array.isArray(collapsedSaved) ? collapsedSaved : []);
     const renderGroup = (category, parent) => {
       let roomParent = parent;
+      const categoryId = category?.id || '', belongs = channel => category ? (channel.category_id || '') === categoryId : !channel.category_id || !categoryIds.has(channel.category_id);
+      const textRooms = (state.textChannels || []).filter(belongs).sort((a, b) => a.position - b.position), voiceRooms = voiceChannels.filter(belongs).sort((a, b) => a.position - b.position);
       if (category) {
-        const group = document.createElement('section'); group.className = `category-channel-group${collapsed.has(category.id) ? ' is-collapsed' : ''}`;
-        const heading = document.createElement('div'); heading.className = 'custom-channel-category'; heading.style.setProperty('--category-color', category.color || '#949cf7'); heading.setAttribute('role', 'button'); heading.tabIndex = 0;
-        const arrow = document.createElement('span'); arrow.className = 'category-collapse-arrow'; arrow.textContent = collapsed.has(category.id) ? '›' : '⌄'; const label = document.createElement('strong'); label.textContent = category.name; heading.append(arrow, label);
-        const toggle = () => { const closing = !group.classList.contains('is-collapsed'); group.classList.toggle('is-collapsed', closing); arrow.textContent = closing ? '›' : '⌄'; if (closing) collapsed.add(category.id); else collapsed.delete(category.id); localStorage.setItem(storageKey, JSON.stringify([...collapsed])); };
+        const group = document.createElement('section'); group.className = `category-channel-group${collapsed.has(category.id) ? ' is-collapsed' : ''}${textRooms.length + voiceRooms.length ? '' : ' is-empty'}`;
+        const heading = document.createElement('div'); heading.className = 'custom-channel-category'; heading.style.setProperty('--category-color', category.color || '#949cf7'); heading.setAttribute('role', 'button'); heading.setAttribute('aria-expanded', String(!collapsed.has(category.id))); heading.tabIndex = 0;
+        const arrow = document.createElement('span'); arrow.className = 'category-collapse-arrow'; arrow.textContent = '›'; const label = document.createElement('strong'); label.textContent = category.name; const count = document.createElement('small'); count.className = 'category-room-count'; count.textContent = String(textRooms.length + voiceRooms.length); heading.append(arrow, label, count);
+        const toggle = () => { const closing = !group.classList.contains('is-collapsed'); group.classList.toggle('is-collapsed', closing); heading.setAttribute('aria-expanded', String(!closing)); if (closing) collapsed.add(category.id); else collapsed.delete(category.id); localStorage.setItem(storageKey, JSON.stringify([...collapsed])); };
         heading.onclick = toggle; heading.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } };
         if (state.server?.capabilities?.manageChannels) { const add = button('+', 'category-add-room'); add.title = `Adicionar canal em ${category.name}`; add.onclick = event => { event.stopPropagation(); openManagement('voice'); }; heading.append(add); }
         roomParent = document.createElement('div'); roomParent.className = 'category-channel-rooms'; group.append(heading, roomParent); parent.append(group);
       }
-      const categoryId = category?.id || '';
-      const belongs = channel => category ? (channel.category_id || '') === categoryId : !channel.category_id || !categoryIds.has(channel.category_id);
-      const textRooms = (state.textChannels || []).filter(belongs).sort((a, b) => a.position - b.position);
       for (const channel of textRooms) {
         const channelButton = button('', `channel room-channel${state.channel === channel.name ? ' active' : ''}`); channelButton.dataset.roomType = 'text'; channelButton.dataset.channel = channel.name;
         const icon = document.createElement('span'); icon.className = 'room-kind-icon'; icon.textContent = '#'; const name = document.createElement('span'); name.className = 'room-channel-name'; name.textContent = channel.name; channelButton.append(icon, name);
         if (state.server?.capabilities?.manageChannels) { const gear = document.createElement('span'); gear.className = 'room-settings-button'; gear.textContent = '•••'; gear.title = 'Configurações da sala'; gear.onclick = event => { event.stopPropagation(); openChannelSettings(channel.name); }; channelButton.append(gear); }
         channelButton.onclick = () => { state.channel = channel.name; renderVoiceChannels(); renderMessages(); closeMobileChannels?.(); }; roomParent.append(channelButton);
       }
-      const voiceRooms = voiceChannels.filter(belongs).sort((a, b) => a.position - b.position);
       for (const channel of voiceRooms) {
         const block = document.createElement('div'); block.className = 'voice-channel-block';
         const users = voiceUsers.filter(user => user.channel === channel.id);
