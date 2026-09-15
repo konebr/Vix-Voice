@@ -50,3 +50,7 @@ body{background:color-mix(in srgb,var(--theme-bg) 88%,#000)!important;letter-spa
 .community-list-button:hover .community-item{border-color:rgba(126,116,255,.4);background:rgba(126,116,255,.1);transform:translateX(2px)}
 .community-note{margin:12px 2px 0;color:#7f879c;font-size:11px;line-height:1.5;text-align:left}
 @media(max-width:520px){.community-card-header{padding:20px 18px 15px}.community-card-content{padding:17px 18px 20px}.community-card .community-card-header h1{font-size:22px}.community-item{min-height:58px}}
+
+/* Fotos ocupam integralmente seus respectivos quadros */
+.avatar,.member-card-avatar,.private-avatar,.profile-editor-avatar,.inline-avatar-preview,.management-avatar,.management-server>span.has-image,.server-photo-preview.has-image,.server-invite-logo.has-image{padding:0!important;overflow:hidden;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;background-origin:border-box!important}
+.server>img,.picker-server-icon img{display:block;width:100%!important;height:100%!important;max-width:none;object-fit:cover!important;object-position:center}
