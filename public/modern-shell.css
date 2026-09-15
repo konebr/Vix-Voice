@@ -45,7 +45,8 @@ body{background:color-mix(in srgb,var(--theme-bg) 88%,#000)!important;letter-spa
 .community-card .community-primary-action{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:46px;margin:4px 0 0;border:1px solid rgba(139,127,255,.5);border-radius:12px;background:linear-gradient(135deg,#7367f5,#5865e8);box-shadow:0 8px 24px rgba(88,101,232,.2);color:#fff;font-size:14px;font-weight:750;transition:.16s ease}
 .community-card .community-primary-action:hover{background:linear-gradient(135deg,#8277ff,#6571ef);box-shadow:0 10px 28px rgba(88,101,232,.3);transform:translateY(-1px)}
 .community-card .community-primary-action span{font-size:18px;font-weight:400}
-.community-list-button{width:100%;height:auto;margin:0;padding:0;border:0;border-radius:13px;background:transparent;text-align:left}
+.community-card .community-list-button{display:block;width:100%;min-height:0;height:auto;margin:0;padding:0;border:0;border-radius:13px;background:transparent;color:inherit;box-shadow:none;text-align:left;overflow:visible}
+.community-card .community-list-button:hover,.community-card .community-list-button:focus-visible{background:transparent;box-shadow:none;transform:none}
 .community-list-button .community-item{transition:.16s ease}
 .community-list-button:hover .community-item{border-color:rgba(126,116,255,.4);background:rgba(126,116,255,.1);transform:translateX(2px)}
 .community-note{margin:12px 2px 0;color:#7f879c;font-size:11px;line-height:1.5;text-align:left}

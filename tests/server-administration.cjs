@@ -116,4 +116,5 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(styles, /Navegação compacta de categorias/);
   assert.match(styles, /Categorias com leitura e toque confortáveis/);
   assert.match(styles, /Lista de membros com cartões amplos/);
+  assert.match(styles, /\.community-card \.community-list-button\{display:block;width:100%;min-height:0;height:auto/);
 });
