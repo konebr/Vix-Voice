@@ -4,6 +4,7 @@ const fs = require('node:fs');
 
 const worker = fs.readFileSync('src/worker.js', 'utf8');
 const client = fs.readFileSync('public/sfu-voice.js', 'utf8');
+const privateClient = fs.readFileSync('public/private.js', 'utf8');
 const html = fs.readFileSync('public/app/index.html', 'utf8');
 
 test('backend issues short lived, room scoped SFU tokens', () => {
@@ -66,4 +67,16 @@ test('connected SFU title leaves dedicated room for the latency badge', () => {
   assert.doesNotMatch(client, /Voz conectada · SFU da VPS/);
   const css = fs.readFileSync('public/call-ui.css', 'utf8');
   assert.match(css, /grid-template-columns:minmax\(0,1fr\) auto auto/);
+});
+
+test('private calls use the VPS SFU and the professional microphone chain', () => {
+  assert.match(worker, /call-token/);
+  assert.match(worker, /privateCall:true/);
+  assert.match(worker, /canPublishSources:\['microphone'\]/);
+  assert.match(privateClient, /connectPrivateSfu/);
+  assert.match(privateClient, /applyMicrophoneVolume/);
+  assert.match(privateClient, /forceStereo:true/);
+  assert.match(privateClient, /dtx:true,red:true/);
+  assert.match(privateClient, /Reconnecting/);
+  assert.doesNotMatch(privateClient, /new RTCPeerConnection/);
 });

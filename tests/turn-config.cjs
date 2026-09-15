@@ -12,7 +12,7 @@ test('TURN uses the current Metered credentials endpoint and validates relay ser
   assert.match(source, /startsWith\('turn'\)/);
 });
 
-test('voice and private calls use the self-hosted TURN as mandatory relay', () => {
+test('voice uses TURN fallback and private calls use the self-hosted VPS SFU', () => {
   const worker = fs.readFileSync('src/worker.js', 'utf8');
   const app = fs.readFileSync('public/app.js', 'utf8');
   const privateCalls = fs.readFileSync('public/private.js', 'utf8');
@@ -21,6 +21,8 @@ test('voice and private calls use the self-hosted TURN as mandatory relay', () =
   assert.match(worker, /turn:\$\{host\}:3478\?transport=udp/);
   assert.match(app, /iceTransportPolicy:'relay'/);
   assert.match(app, /api\('\/api\/servers\/_turn'\)/);
-  assert.match(privateCalls, /iceTransportPolicy:'relay'/);
+  assert.match(privateCalls, /globalThis\.LivekitClient/);
+  assert.match(privateCalls, /api\/private\/call-token/);
+  assert.doesNotMatch(privateCalls, /new RTCPeerConnection/);
   assert.doesNotMatch(privateCalls, /stun\.l\.google\.com/);
 });
