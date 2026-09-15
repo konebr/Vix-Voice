@@ -87,4 +87,6 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(app, /custom-channel-category/);
   assert.match(styles, /\.custom-channel-category/);
   assert.match(styles, /\.channel-scroll>\.category\{display:none!important\}/);
+  assert.match(styles, /\.channel\.active,.channel\.selected\{border-color:var\(--vix-border\)/);
+  assert.doesNotMatch(styles, /\.channel\.active,.channel\.selected\{[^}]*theme-accent/);
 });
