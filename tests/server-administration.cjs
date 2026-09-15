@@ -90,6 +90,9 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(worker, /CATEGORY_DELETE/);
   assert.match(worker, /type='mixed'/);
   assert.match(worker, /SELECT id FROM channel_categories WHERE id=\? AND server_id=\?/);
+  assert.match(worker, /voice_names_by_category/);
+  assert.match(worker, /COALESCE\(category_id,""\)=\? AND lower\(name\)=lower\(\?\)/);
+  assert.match(worker, /Já existe uma sala de voz com esse nome nesta categoria/);
   assert.doesNotMatch(worker, /servidor precisa manter pelo menos um canal de voz/);
   assert.match(management, /Canais e categorias/);
   assert.match(management, /Criar categoria/);
