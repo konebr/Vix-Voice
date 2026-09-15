@@ -11,7 +11,7 @@
     <nav id="settings-nav">
       <button data-view="account"><span>◉</span><div>Minha conta<small>Login e segurança</small></div></button>
       <button data-view="profile"><span>✦</span><div>Perfil<small>Identidade e cartão</small></div></button>
-      <button data-view="privacy" disabled><span>◇</span><div>Dados e privacidade<small>Disponível em breve</small></div><b>EM BREVE</b></button>
+      <button data-view="privacy"><span>◇</span><div>Dados e privacidade<small>Controle e exportação</small></div></button>
       <button data-view="notifications"><span>♢</span><div>Notificações<small>Alertas e sons</small></div></button>
       <div class="settings-nav-label">CONFIGURAÇÕES DO APLICATIVO</div>
       <button data-view="voice"><span>◖</span><div>Voz e vídeo<small>Dispositivos e áudio</small></div></button>
@@ -115,7 +115,25 @@
     updateInlinePreview();
   }
 
-  function renderPrivacy() { $('settings-content').innerHTML = `<section class="settings-page settings-disabled-page"><div class="settings-page-intro"><span>EM DESENVOLVIMENTO</span><h1>Dados e privacidade</h1><p>Esta área está sendo preparada e permanecerá desativada por enquanto.</p></div><div class="privacy-lock"><div>◇</div><h2>Controles de privacidade em breve</h2><p>Aqui você poderá controlar dados, bloqueios e visibilidade do perfil.</p><span>INDISPONÍVEL NESTA VERSÃO</span></div></section>`; }
+  async function renderPrivacy() {
+    $('settings-content').innerHTML = '<div class="settings-loading">Carregando seus controles de privacidade…</div>';
+    let privacy = { friend_requests:true, share_presence:true, personalization:true };
+    try { ({ privacy } = await api('/api/account/privacy')); } catch (error) { console.warn(error); }
+    $('settings-content').innerHTML = `<section class="settings-page privacy-page"><div class="settings-page-intro"><span>SEUS DADOS</span><h1>Dados e privacidade</h1><p>Escolha como sua conta pode ser encontrada e baixe uma cópia das informações armazenadas.</p></div>
+      <div class="privacy-summary"><span>◇</span><div><strong>Proteção da conta ativa</strong><small>Suas preferências ficam vinculadas à conta e valem no site e no aplicativo.</small></div><b>PROTEGIDO</b></div>
+      <div class="settings-section privacy-controls"><div class="settings-section-title"><div><h2>Controles de interação</h2><p>Estas escolhas são aplicadas imediatamente.</p></div></div>
+        ${notificationRow('privacy-friend-requests','Solicitações de amizade','Permite que outras pessoas adicionem você usando seu ID público.',privacy.friend_requests)}
+        ${notificationRow('privacy-presence','Compartilhar presença online','Mostra aos seus amigos quando você está online, ausente ou ocupado.',privacy.share_presence)}
+        ${notificationRow('privacy-personalization','Personalização neste dispositivo','Mantém tema, áudio e preferências locais para melhorar sua experiência.',privacy.personalization)}
+      </div>
+      <div class="privacy-data-grid"><article class="settings-section privacy-data-card"><span>⇩</span><h2>Baixar seus dados</h2><p>Crie um arquivo JSON com perfil, preferências, amizades e mensagens privadas da sua conta.</p><button id="privacy-export" class="settings-secondary">Baixar cópia dos dados</button></article><article class="settings-section privacy-data-card"><span>⌁</span><h2>Dispositivos conectados</h2><p>Revise navegadores e aplicativos que ainda possuem acesso à sua conta.</p><button id="privacy-sessions" class="settings-secondary">Revisar sessões</button></article></div>
+      <div class="settings-section privacy-local"><div><h2>Dados deste dispositivo</h2><p>Remove tema, preferências de áudio e notificações salvas localmente. Sua conta e suas mensagens permanecem intactas.</p></div><button id="privacy-clear-local" class="settings-secondary">Limpar dados locais</button></div><p id="settings-feedback" class="settings-feedback" role="status"></p></section>`;
+    const savePrivacy = async (key,checked,input) => { input.disabled = true; try { const result = await api('/api/account/privacy',{method:'PATCH',body:JSON.stringify({[key]:checked})}); privacy=result.privacy; feedback('Preferência de privacidade atualizada.',true); } catch(error) { input.checked=!checked; feedback(error.message); } finally { input.disabled=false; } };
+    for(const [id,key] of [['privacy-friend-requests','friend_requests'],['privacy-presence','share_presence'],['privacy-personalization','personalization']])$(id).onchange=event=>savePrivacy(key,event.target.checked,event.target);
+    $('privacy-export').onclick=async event=>{const button=event.currentTarget;button.disabled=true;button.textContent='Preparando arquivo…';try{const response=await fetch('/api/account/export',{headers:{Authorization:`Bearer ${state.identity.token}`},cache:'no-store'});if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'Não foi possível exportar seus dados.')}const blob=await response.blob(),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`vix-voice-dados-${new Date().toISOString().slice(0,10)}.json`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),1000);feedback('Sua cópia de dados foi baixada.',true)}catch(error){feedback(error.message)}finally{button.disabled=false;button.textContent='Baixar cópia dos dados'}};
+    $('privacy-sessions').onclick=()=>selectView('account');
+    $('privacy-clear-local').onclick=async()=>{if(!await vixConfirm('Remover as preferências salvas neste dispositivo?',{title:'Limpar dados locais',confirmText:'Limpar'}))return;const session=localStorage.getItem(SESSION);for(const key of Object.keys(localStorage))if(key.startsWith('vix-'))localStorage.removeItem(key);if(session)localStorage.setItem(SESSION,session);feedback('Dados locais removidos. As preferências padrão serão usadas ao reiniciar.',true)};
+  }
 
   function notificationRow(id, title, copy, checked) { return `<label class="notification-row"><span><strong>${title}</strong><small>${copy}</small></span><input id="${id}" type="checkbox" ${checked ? 'checked' : ''}><i></i></label>`; }
   function renderNotifications() {
@@ -141,10 +159,10 @@
   }
 
   async function selectView(view) {
-    if (view === 'privacy') return renderPrivacy(); currentView = view;
+    currentView = view;
     for (const button of settings.querySelectorAll('#settings-nav button')) button.classList.toggle('selected', button.dataset.view === view);
     $('settings-title').textContent = viewNames[view];
-    if (view === 'account') await renderAccount(); else if (view === 'profile') await renderProfile(); else if (view === 'notifications') renderNotifications(); else if (view === 'voice') await renderSettingsVoice(); else renderAppearance();
+    if (view === 'account') await renderAccount(); else if (view === 'profile') await renderProfile(); else if (view === 'privacy') await renderPrivacy(); else if (view === 'notifications') renderNotifications(); else if (view === 'voice') await renderSettingsVoice(); else renderAppearance();
   }
 
   openUserSettings = async () => {

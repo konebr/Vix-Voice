@@ -383,6 +383,9 @@ Users.prototype.fetch=async function(req){
     if(!/^VIX-[A-F0-9]{12}$/.test(public_id))return j({error:'Informe um ID no formato VIX-XXXXXXXXXXXX.'},400);
     const target=one(this.c.storage.sql.exec('SELECT id,public_id,display_name AS name FROM users WHERE public_id=?',public_id));
     if(!target)return j({error:'Nenhum usuário foi encontrado com esse ID.'},404);
+    this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_privacy_preferences(user_id TEXT PRIMARY KEY,friend_requests INTEGER,share_presence INTEGER,personalization INTEGER,updated INTEGER)');
+    const targetPrivacy=one(this.c.storage.sql.exec('SELECT friend_requests FROM user_privacy_preferences WHERE user_id=?',target.id));
+    if(targetPrivacy&&Number(targetPrivacy.friend_requests)===0)return j({error:'Esta pessoa não está aceitando solicitações de amizade.'},403);
     if(target.id===user.id)return j({error:'Você não pode adicionar a si mesmo.'},400);
     if(this.privateFriends(user.id,target.id))return j({error:'Essa pessoa já está na sua lista de amigos.'},409);
     const reverse=one(this.c.storage.sql.exec('SELECT id FROM friend_requests WHERE sender_id=? AND receiver_id=? AND status=?',target.id,user.id,'pending'));
@@ -573,6 +576,7 @@ const PRESENCE_STATES=new Set(['online','idle','dnd','invisible']);
 Users.prototype.fetch=async function(request){
   const url=new URL(request.url);
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_presence_preferences(user_id TEXT PRIMARY KEY,status TEXT,updated INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_privacy_preferences(user_id TEXT PRIMARY KEY,friend_requests INTEGER,share_presence INTEGER,personalization INTEGER,updated INTEGER)');
   if(url.pathname==='/api/profile/presence'){
     const token=request.headers.get('Authorization')?.replace('Bearer ','')||url.searchParams.get('token')||'',user=one(this.c.storage.sql.exec('SELECT users.id FROM sessions JOIN users ON users.id=sessions.user_id WHERE token=? AND expires_at>?',token,Date.now()));
     if(!user)return j({error:'Não autenticado'},401);
@@ -587,10 +591,23 @@ Users.prototype.fetch=async function(request){
   const response=await presenceUsersFetch.call(this,request);
   if(url.pathname==='/api/private/home'&&request.method==='GET'&&response.ok){
     const data=await response.json();
-    data.friends=(data.friends||[]).map(friend=>{const saved=one(this.c.storage.sql.exec('SELECT status FROM user_presence_preferences WHERE user_id=?',friend.id)),status=PRESENCE_STATES.has(saved?.status)?saved.status:'online',visible=friend.online&&status!=='invisible';return{...friend,online:visible,presence_status:visible?status:'offline'}});
+    data.friends=(data.friends||[]).map(friend=>{const saved=one(this.c.storage.sql.exec('SELECT status FROM user_presence_preferences WHERE user_id=?',friend.id)),privacy=one(this.c.storage.sql.exec('SELECT share_presence FROM user_privacy_preferences WHERE user_id=?',friend.id)),status=PRESENCE_STATES.has(saved?.status)?saved.status:'online',visible=friend.online&&status!=='invisible'&&Number(privacy?.share_presence??1)===1;return{...friend,online:visible,presence_status:visible?status:'offline'}});
     return j(data);
   }
   return response;
+};
+
+// Dados e privacidade: preferências vinculadas à conta e exportação portátil.
+const privacyUsersFetch=Users.prototype.fetch;
+Users.prototype.ensurePrivacy=function(){this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS user_privacy_preferences(user_id TEXT PRIMARY KEY,friend_requests INTEGER,share_presence INTEGER,personalization INTEGER,updated INTEGER)')};
+Users.prototype.fetch=async function(request){
+  const url=new URL(request.url),privacyRoute=url.pathname==='/api/account/privacy',exportRoute=url.pathname==='/api/account/export';
+  if(!privacyRoute&&!exportRoute)return privacyUsersFetch.call(this,request);this.ensurePrivacy();
+  const token=request.headers.get('Authorization')?.replace('Bearer ','')||url.searchParams.get('token')||'',user=this.sessionOwner(token);if(!user)return j({error:'Não autenticado'},401);
+  if(privacyRoute&&request.method==='GET'){const saved=one(this.c.storage.sql.exec('SELECT friend_requests,share_presence,personalization,updated FROM user_privacy_preferences WHERE user_id=?',user.id))||{friend_requests:1,share_presence:1,personalization:1,updated:0};return j({privacy:{friend_requests:Boolean(saved.friend_requests),share_presence:Boolean(saved.share_presence),personalization:Boolean(saved.personalization),updated:saved.updated}})}
+  if(privacyRoute&&request.method==='PATCH'){const current=one(this.c.storage.sql.exec('SELECT * FROM user_privacy_preferences WHERE user_id=?',user.id))||{friend_requests:1,share_presence:1,personalization:1},body=await request.json().catch(()=>({})),privacy={friend_requests:Object.hasOwn(body,'friend_requests')?Number(Boolean(body.friend_requests)):Number(current.friend_requests),share_presence:Object.hasOwn(body,'share_presence')?Number(Boolean(body.share_presence)):Number(current.share_presence),personalization:Object.hasOwn(body,'personalization')?Number(Boolean(body.personalization)):Number(current.personalization),updated:Date.now()};this.c.storage.sql.exec('INSERT OR REPLACE INTO user_privacy_preferences VALUES(?,?,?,?,?)',user.id,privacy.friend_requests,privacy.share_presence,privacy.personalization,privacy.updated);return j({privacy:{...privacy,friend_requests:Boolean(privacy.friend_requests),share_presence:Boolean(privacy.share_presence),personalization:Boolean(privacy.personalization)}})}
+  if(exportRoute&&request.method==='GET'){const account=one(this.c.storage.sql.exec('SELECT id,public_id,email,display_name,avatar_color,created_at,bio,custom_status,pronouns FROM users WHERE id=?',user.id)),privacy=one(this.c.storage.sql.exec('SELECT friend_requests,share_presence,personalization,updated FROM user_privacy_preferences WHERE user_id=?',user.id))||{friend_requests:1,share_presence:1,personalization:1,updated:0},friends=[...this.c.storage.sql.exec('SELECT user_a,user_b,created FROM friendships WHERE user_a=? OR user_b=?',user.id,user.id)],requests=[...this.c.storage.sql.exec('SELECT id,sender_id,receiver_id,status,created FROM friend_requests WHERE sender_id=? OR receiver_id=?',user.id,user.id)],messages=[...this.c.storage.sql.exec('SELECT id,sender_id,receiver_id,text,created,read_at FROM direct_messages WHERE sender_id=? OR receiver_id=? ORDER BY created LIMIT 5000',user.id,user.id)];return new Response(JSON.stringify({exported_at:new Date().toISOString(),account,privacy,friends,friend_requests:requests,direct_messages:messages},null,2),{headers:{'content-type':'application/json; charset=utf-8','content-disposition':`attachment; filename="vix-voice-dados-${user.id.slice(0,8)}.json"`,'cache-control':'no-store'}})}
+  return j({error:'Método inválido'},405);
 };
 
 const presenceServersFetch=Servers.prototype.fetch;
