@@ -463,6 +463,37 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 @keyframes member-avatar-in { from { transform:translateY(7px) scale(.82) } to { transform:none } }
 @media(max-width:760px){.profile-editor-layout{grid-template-columns:1fr}.profile-preview-column{order:-1}.profile-editor-preview{min-height:280px}.profile-editor-actions{align-items:stretch;flex-direction:column-reverse}.profile-editor-actions>div{display:grid;grid-template-columns:1fr 1fr}.profile-editor-actions>#profile-photo-save{width:100%}}
 @media(prefers-reduced-motion:reduce){.profile-editor-modal.is-opening,.profile-editor-modal.is-opening .profile-editor-card,#member-profile-card.is-opening,.member-card-banner,.member-card-avatar{animation:none}.member,.member::before,.member .avatar,.profile-editor-preview,.profile-upload{transition:none}}
+
+/* Cartão público de membro: perfil vertical, temático e completo. */
+#member-profile-card{width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:hidden;border-radius:22px;background:var(--card-base);box-shadow:0 30px 90px #000e}
+#member-profile-card::after{content:"";position:absolute;z-index:0;inset:0;border-radius:inherit;background:linear-gradient(180deg,transparent 12%,color-mix(in srgb,var(--card-base) 58%,transparent) 36%,var(--card-base) 70%);pointer-events:none}
+.member-card-backdrop{position:absolute;z-index:-1;inset:0;background-position:center;background-size:cover;filter:blur(12px) saturate(1.35);opacity:.3;transform:scale(1.08);pointer-events:none}
+.member-card-hero{position:relative;z-index:2;height:190px}
+.member-card-banner{height:164px;border-radius:19px 19px 0 0;background-image:linear-gradient(135deg,color-mix(in srgb,var(--profile-accent) 78%,#101521),color-mix(in srgb,var(--profile-accent) 28%,#101521));box-shadow:inset 0 -60px 75px #0005}
+.member-card-top-actions{position:absolute;z-index:4;top:12px;right:12px;display:flex;gap:8px}
+.member-card-icon-action{display:grid;place-items:center;width:35px;height:35px;padding:0;border:1px solid #ffffff20;border-radius:50%;background:#0a0d14c7;color:#fff;font-size:17px;line-height:1;cursor:pointer;box-shadow:0 6px 18px #0007;backdrop-filter:blur(9px);transition:transform .18s ease,background .18s ease}
+.member-card-icon-action:hover{background:color-mix(in srgb,var(--profile-accent) 55%,#11151e);transform:translateY(-2px)}
+.member-card-avatar{position:absolute;z-index:3;left:18px;bottom:-2px;width:86px;height:86px;margin:0;border-width:5px;background:var(--card-base);font-size:22px}
+.member-card-avatar img{width:100%;height:100%;border-radius:inherit;object-fit:cover}
+.member-card-avatar-presence{position:absolute;right:0;bottom:5px;width:16px;height:16px;border:4px solid var(--card-base);border-radius:50%;background:#626a79}
+.member-card-avatar-presence.online{background:#35d992}.member-card-avatar-presence.idle{background:#e4ad39}.member-card-avatar-presence.dnd{background:#ef5364}
+.member-card-body{position:relative;z-index:2;max-height:calc(100vh - 214px);overflow:auto;padding:7px 17px 17px;border-radius:0 0 19px 19px;background:linear-gradient(180deg,color-mix(in srgb,var(--card-base) 88%,transparent),color-mix(in srgb,var(--card-base) 97%,#05070c));scrollbar-width:thin}
+.member-card-identity{gap:6px 8px}.member-card-identity>strong{font-size:22px;line-height:1.12;text-shadow:0 2px 10px #000b}
+.member-card-metadata{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:5px;color:#abb2c2;font-size:11px}
+.member-card-pronouns{font-size:11px}.member-card-status{margin:0}.member-card-status::before{width:6px;height:6px}
+.member-card-mutual{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px;border:1px solid #ffffff12;border-radius:12px;background:#ffffff0a;backdrop-filter:blur(10px)}
+.member-card-server-mark{display:grid;place-items:center;width:35px;height:35px;flex:none;overflow:hidden;border-radius:11px;background:color-mix(in srgb,var(--profile-accent) 35%,#252b39);font-size:12px;font-weight:850}
+.member-card-server-mark img{width:100%;height:100%;object-fit:cover}.member-card-mutual>span:last-child{min-width:0}.member-card-mutual strong{display:block;overflow:hidden;color:#f1f3f8;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+#member-profile-card .member-card-mutual small{margin:2px 0 0;padding:0;border:0;color:#8c95a8;font-size:9px;letter-spacing:.04em;text-transform:none}
+.member-card-section{margin-top:11px;padding:11px 12px;border:1px solid #ffffff10;border-radius:12px;background:#0d111a52;backdrop-filter:blur(9px)}
+#member-profile-card .member-card-section small{margin:0 0 7px;padding:0;border:0;color:color-mix(in srgb,var(--profile-accent) 48%,white);font-size:9px;font-weight:850;letter-spacing:.11em}
+.member-card-activity strong{display:block;overflow:hidden;color:#f1f3f7;font-size:12px;line-height:1.4;text-overflow:ellipsis}
+#member-profile-card .member-card-about p{min-height:0;margin:0;color:#c7ccd6;font-size:11px;line-height:1.5}
+.member-card-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.member-card-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;overflow:hidden;padding:6px 9px;border:1px solid color-mix(in srgb,var(--chip-color,var(--profile-accent)) 36%,#ffffff16);border-radius:999px;background:color-mix(in srgb,var(--chip-color,var(--profile-accent)) 15%,#111620);color:#e4e7ee;font-size:9px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}
+.member-card-chip::before{content:"";width:7px;height:7px;flex:none;border-radius:50%;background:var(--chip-color,var(--profile-accent))}.member-card-chip.presence-online::before{background:#35d992}.member-card-chip.presence-idle::before{background:#e4ad39}.member-card-chip.presence-dnd::before{background:#ef5364}
+.member-card-action{min-height:44px;margin-top:14px;border-radius:12px;background:color-mix(in srgb,var(--profile-accent) 24%,#202633);backdrop-filter:blur(8px)}
+@media(max-width:520px){#member-profile-card{position:fixed;left:12px!important;right:12px!important;bottom:12px!important;top:auto!important;width:auto}.member-card-hero{height:170px}.member-card-banner{height:146px}.member-card-body{max-height:calc(100vh - 206px)}}
 .room-creator-card { width: min(480px, 100%); text-align: left; }
 .room-modal-kicker { color: #858fff; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
 .room-creator-card h1 { margin-top: 8px; }

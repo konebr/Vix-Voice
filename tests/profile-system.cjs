@@ -53,6 +53,9 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(worker, /border_style TEXT DEFAULT/);
   assert.match(app, /card-border-\$\{member\.card_border/);
   assert.match(app, /member-card-action/);
+  assert.match(app, /member-card-mutual/);
+  assert.match(app, /member-card-chips/);
+  assert.match(app, /Servidor em comum/);
   assert.match(app, /card_theme:state\.identity\.card_theme/);
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
   assert.match(voice, /window\.memberProfileFor/);

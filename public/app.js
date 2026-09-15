@@ -150,7 +150,74 @@ let memberListMode=localStorage.getItem('vix-member-list-mode')||'role';
 function renderMemberToolbar(list,members){const toolbar=document.createElement('div'),label=document.createElement('span');toolbar.className='member-list-toolbar';label.textContent=`MEMBROS — ${members.length}`;toolbar.append(label);for(const [mode,text] of [['role','Por cargo'],['status','Por status']]){const button=document.createElement('button');button.type='button';button.textContent=text;button.className=memberListMode===mode?'active':'';button.onclick=()=>{memberListMode=mode;localStorage.setItem('vix-member-list-mode',mode);paintMemberList(list,members)};toolbar.append(button)}list.append(toolbar)}
 function paintMemberList(list,members){list.replaceChildren();renderMemberToolbar(list,members);if(memberListMode==='status'){const ordered=organizeServerMembers(members);renderMemberSection(list,'ONLINE',ordered.filter(member=>member.online));renderMemberSection(list,'OFFLINE',ordered.filter(member=>!member.online));return}for(const group of groupServerMembersByRole(members))renderMemberRoleSection(list,group)}
 const memberCard=document.createElement('aside');memberCard.id='member-profile-card';memberCard.hidden=true;document.body.append(memberCard);
-function showMemberProfileCard(member,event){event?.preventDefault();if(!member)return;const themes=['midnight','aurora','neon','sunset','ocean','royal','forest','rose'],effects=['none','glow','crystal','stars'],theme=themes.includes(member.card_theme)?member.card_theme:'midnight',effect=effects.includes(member.card_effect)?member.card_effect:'none',presence=memberPresence(member),presenceText=presence==='offline'?relativeLastSeen(member.last_seen):presenceLabels[presence],decoration=document.createElement('div'),banner=document.createElement('div'),body=document.createElement('div'),avatar=document.createElement('div'),identityLine=document.createElement('div'),name=document.createElement('strong'),badge=document.createElement('span'),pronouns=document.createElement('span'),role=document.createElement('span'),status=document.createElement('span'),customStatus=document.createElement('div'),aboutTitle=document.createElement('small'),bio=document.createElement('p'),action=document.createElement('button');memberCard.className=`card-theme-${theme} card-effect-${effect} card-border-${member.card_border||'subtle'} avatar-frame-${member.avatar_frame||'classic'}`;memberCard.style.setProperty('--profile-accent',member.color||'#5865f2');decoration.className='member-card-decoration';banner.className='member-card-banner';banner.style.backgroundColor=member.color||'#5865f2';banner.style.backgroundImage=member.banner?`url("${member.banner}")`:'';body.className='member-card-body';avatar.className='member-card-avatar';paintAvatar(avatar,member.avatar,member.name,member.color);identityLine.className='member-card-identity';name.textContent=member.user_id===state.identity?.id?`${member.name} (você)`:member.name;badge.className='member-card-badge';badge.textContent=member.profile_badge||'';badge.hidden=!member.profile_badge;pronouns.className='member-card-pronouns';pronouns.textContent=member.pronouns||'';identityLine.append(name,badge,pronouns);role.className='member-card-role';role.textContent=memberRoleLabel(member.role);role.style.color=member.role_color||'#9da4b2';status.className=`member-card-status ${presence}`;status.textContent=presenceText;customStatus.className='member-card-custom-status';customStatus.textContent=member.custom_status||'';customStatus.hidden=!member.custom_status;aboutTitle.textContent='SOBRE MIM';bio.textContent=member.bio||'Este usuário ainda não escreveu uma apresentação.';action.type='button';action.className='member-card-action';const own=member.user_id===state.identity?.id;action.textContent=own?'Personalizar meu perfil':`Conversar com ${member.name}`;action.onclick=()=>{memberCard.hidden=true;if(own)showProfile();else window.openPrivateChat?.(member.user_id)};body.append(avatar,identityLine,role,status,customStatus,aboutTitle,bio,action);memberCard.replaceChildren(decoration,banner,body);memberCard.hidden=false;void memberCard.offsetWidth;memberCard.classList.add('is-opening');const x=Math.min(event?.clientX??innerWidth/2,innerWidth-330),y=Math.min(event?.clientY??innerHeight/2,innerHeight-500);memberCard.style.left=`${Math.max(12,x)}px`;memberCard.style.top=`${Math.max(12,y)}px`}
+function showMemberProfileCard(member,event){
+  event?.preventDefault();
+  if(!member)return;
+  const themes=['midnight','aurora','neon','sunset','ocean','royal','forest','rose'];
+  const effects=['none','glow','crystal','stars'];
+  const theme=themes.includes(member.card_theme)?member.card_theme:'midnight';
+  const effect=effects.includes(member.card_effect)?member.card_effect:'none';
+  const presence=memberPresence(member);
+  const presenceText=presence==='offline'?relativeLastSeen(member.last_seen):presenceLabels[presence];
+  const own=member.user_id===state.identity?.id;
+  const node=(tag,className,text)=>{const item=document.createElement(tag);if(className)item.className=className;if(text!==undefined)item.textContent=text;return item};
+  const openConversation=()=>{memberCard.hidden=true;if(own)showProfile();else window.openPrivateChat?.(member.user_id)};
+  memberCard.className=`card-theme-${theme} card-effect-${effect} card-border-${member.card_border||'subtle'} avatar-frame-${member.avatar_frame||'classic'}`;
+  memberCard.style.setProperty('--profile-accent',member.color||'#5865f2');
+  const backdrop=node('div','member-card-backdrop');
+  if(member.banner)backdrop.style.backgroundImage=`url("${member.banner}")`;
+  const decoration=node('div','member-card-decoration');
+  const hero=node('div','member-card-hero');
+  const banner=node('div','member-card-banner');
+  banner.style.backgroundColor=member.color||'#5865f2';
+  if(member.banner)banner.style.backgroundImage=`url("${member.banner}")`;
+  const topActions=node('div','member-card-top-actions');
+  const primaryTop=node('button','member-card-icon-action',own?'✦':'✉');
+  primaryTop.type='button';primaryTop.title=own?'Personalizar perfil':'Iniciar conversa';primaryTop.onclick=openConversation;
+  const closeTop=node('button','member-card-icon-action','×');
+  closeTop.type='button';closeTop.title='Fechar perfil';closeTop.onclick=()=>memberCard.hidden=true;
+  topActions.append(primaryTop,closeTop);
+  const avatar=node('div','member-card-avatar');
+  paintAvatar(avatar,member.avatar,member.name,member.color);
+  avatar.append(node('span',`member-card-avatar-presence ${presence}`));
+  hero.append(banner,topActions,avatar);
+  const body=node('div','member-card-body');
+  const identityLine=node('div','member-card-identity');
+  const name=node('strong','',own?`${member.name} (você)`:member.name);
+  const badge=node('span','member-card-badge',member.profile_badge||'');badge.hidden=!member.profile_badge;
+  identityLine.append(name,badge);
+  const metadata=node('div','member-card-metadata');
+  if(member.pronouns)metadata.append(node('span','member-card-pronouns',member.pronouns));
+  metadata.append(node('span',`member-card-status ${presence}`,presenceText));
+  const mutual=node('div','member-card-mutual');
+  const serverMark=node('span','member-card-server-mark');
+  paintServerLogo(serverMark,state.server||{name:'Vix Voice',icon:'V'});
+  const mutualCopy=node('span','');
+  mutualCopy.append(node('strong','',state.server?.name||'Vix Voice'),node('small','','Servidor em comum'));
+  mutual.append(serverMark,mutualCopy);
+  const chips=node('div','member-card-chips');
+  const role=node('span','member-card-chip',memberRoleLabel(member.role));
+  role.style.setProperty('--chip-color',member.role_color||member.color||'#9da4b2');
+  chips.append(role,node('span',`member-card-chip presence-${presence}`,presenceText));
+  if(member.profile_badge)chips.append(node('span','member-card-chip',member.profile_badge));
+  body.append(identityLine,metadata,mutual);
+  if(member.custom_status){
+    const activity=node('section','member-card-section member-card-activity');
+    activity.append(node('small','','ATIVIDADE'),node('strong','',member.custom_status));
+    body.append(activity);
+  }
+  const about=node('section','member-card-section member-card-about');
+  about.append(node('small','','SOBRE MIM'),node('p','',member.bio||'Este usuário ainda não escreveu uma apresentação.'));
+  body.append(about,chips);
+  const action=node('button','member-card-action',own?'Personalizar meu perfil':`Conversar com ${member.name}`);
+  action.type='button';action.onclick=openConversation;body.append(action);
+  memberCard.replaceChildren(backdrop,decoration,hero,body);
+  memberCard.hidden=false;void memberCard.offsetWidth;memberCard.classList.add('is-opening');
+  const cardWidth=Math.min(340,innerWidth-24),cardHeight=Math.min(650,innerHeight-24);
+  const x=Math.min(event?.clientX??innerWidth/2,innerWidth-cardWidth-12);
+  const y=Math.min(event?.clientY??innerHeight/2,innerHeight-cardHeight-12);
+  memberCard.style.left=`${Math.max(12,x)}px`;memberCard.style.top=`${Math.max(12,y)}px`;
+}
 window.openMemberProfile=(member,event)=>showMemberProfileCard(knownMembers.get(member.user_id)||member,event);window.memberProfileFor=id=>knownMembers.get(id);window.applyKnownMessageProfiles=()=>{for(const row of document.querySelectorAll('.message[data-user-id]')){const member=knownMembers.get(row.dataset.userId);if(member)paintAvatar(row.querySelector('.avatar'),member.avatar,member.name,member.color)}};document.addEventListener('contextmenu',event=>{const target=event.target.closest?.('[data-member-id],[data-voice-user-id],.message[data-user-id]');if(!target)return;event.preventDefault();event.stopPropagation();const id=target.dataset.memberId||target.dataset.voiceUserId||target.dataset.userId,member=knownMembers.get(id);if(member)showMemberProfileCard(member,event)},true);document.addEventListener('pointerdown',event=>{if(event.button!==2&&!memberCard.hidden&&!memberCard.contains(event.target))memberCard.hidden=true});addEventListener('blur',()=>memberCard.hidden=true);addEventListener('keydown',event=>{if(event.key==='Escape')memberCard.hidden=true});
 let membersRequestRunning=false,membersRequestQueued=false;
 async function renderServerMembers(){if(!state.server||!state.identity)return;if(membersRequestRunning){membersRequestQueued=true;return}membersRequestRunning=true;const serverId=state.server.id,profile={name:state.identity.name,color:state.identity.color,avatar:state.identity.avatar||'',banner:state.identity.banner||'',custom_status:state.identity.custom_status||'',pronouns:state.identity.pronouns||'',bio:state.identity.bio||'',card_theme:state.identity.card_theme||'midnight',card_effect:state.identity.card_effect||'none',profile_badge:state.identity.profile_badge||'',card_border:state.identity.card_border||'subtle',avatar_frame:state.identity.avatar_frame||'classic'},presence_status=window.vixPresence?.effective?.()||state.identity.presence_status||'online',signature=JSON.stringify(profile),syncProfile=syncedProfiles.get(serverId)!==signature;try{await api(`/api/servers/${serverId}/members`,{method:'POST',body:JSON.stringify(syncProfile?{...profile,profile:true,presence_status}:{presence_status})});if(syncProfile)syncedProfiles.set(serverId,signature);const {members=[]}=await api(`/api/servers/${serverId}/members`);if(state.server?.id!==serverId)return;const ordered=organizeServerMembers(members),list=$('members-list');knownMembers.clear();for(const member of ordered)knownMembers.set(member.user_id,member);paintMemberList(list,ordered);window.applyKnownMessageProfiles()}catch(error){console.warn('Lista de membros indisponível',error)}finally{membersRequestRunning=false;if(membersRequestQueued){membersRequestQueued=false;queueMicrotask(renderServerMembers)}}}
