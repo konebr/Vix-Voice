@@ -66,11 +66,29 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(settings, /notificationPrefs/);
   assert.match(settings, /window\.vixNotify/);
   assert.match(privateClient, /window\.vixNotify/);
-  assert.match(index, /settings-modern\.js\?v=themes-2/);
+  assert.match(index, /settings-modern\.js\?v=user-id-1/);
+  assert.match(index, /private\.js\?v=user-id-1/);
   assert.match(index, /modern-shell\.css\?v=categories-8/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /Fotos ocupam integralmente/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /background-size:cover!important/);
   assert.match(index, /settings-modern\.css\?v=ui-20260914-2/);
   assert.match(index, /ux-modern\.css\?v=ui-20260914-4/);
   assert.match(fs.readFileSync('public/ux-modern.css', 'utf8'), /#vix-global-loader\{display:none!important\}/);
+});
+
+test('amizades usam ID público sem expor e-mail na busca', () => {
+  const worker = fs.readFileSync('src/worker.js', 'utf8');
+  const privateClient = fs.readFileSync('public/private.js', 'utf8');
+  const settings = fs.readFileSync('public/settings-modern.js', 'utf8');
+  assert.match(worker, /public_id TEXT DEFAULT/);
+  assert.match(worker, /users_public_id_unique/);
+  assert.match(worker, /VIX-\$\{String\(id/);
+  assert.match(worker, /body\.user_id/);
+  assert.match(worker, /WHERE public_id=\?/);
+  assert.doesNotMatch(worker, /Nenhum usuário foi encontrado com esse e-mail/);
+  assert.match(privateClient, /private-user-id/);
+  assert.match(privateClient, /SEU ID/);
+  assert.match(privateClient, /JSON\.stringify\(\{user_id\}\)/);
+  assert.doesNotMatch(privateClient, /Adicionar por e-mail/);
+  assert.match(settings, /ID público/);
 });
