@@ -379,7 +379,7 @@ Users.prototype.fetch=async function(req){
     return j({friends,incoming,outgoing});
   }
   if(u.pathname==='/api/private/friends'&&req.method==='POST'){
-    const body=await req.json().catch(()=>({})),public_id=String(body.user_id||'').trim().toUpperCase();
+    const body=await req.json().catch(()=>({})),rawPublicId=String(body.user_id||'').trim().toUpperCase(),publicSuffix=rawPublicId.replace(/^VIX[\s-]*/,'').replace(/[^A-F0-9]/g,'').slice(0,12),public_id=publicSuffix?`VIX-${publicSuffix}`:'';
     if(!/^VIX-[A-F0-9]{12}$/.test(public_id))return j({error:'Informe um ID no formato VIX-XXXXXXXXXXXX.'},400);
     const target=one(this.c.storage.sql.exec('SELECT id,public_id,display_name AS name FROM users WHERE public_id=?',public_id));
     if(!target)return j({error:'Nenhum usuário foi encontrado com esse ID.'},404);

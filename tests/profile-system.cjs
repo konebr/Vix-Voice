@@ -67,7 +67,7 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(settings, /window\.vixNotify/);
   assert.match(privateClient, /window\.vixNotify/);
   assert.match(index, /settings-modern\.js\?v=user-id-1/);
-  assert.match(index, /private\.js\?v=private-sfu-1/);
+  assert.match(index, /private\.js\?v=private-sfu-2/);
   assert.match(index, /modern-shell\.css\?v=categories-8/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /Fotos ocupam integralmente/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /background-size:cover!important/);
@@ -90,6 +90,8 @@ test('amizades usam ID público sem expor e-mail na busca', () => {
   assert.match(privateClient, /<span>Vix Voice<\/span>/);
   assert.match(privateClient, /SEU ID/);
   assert.match(privateClient, /JSON\.stringify\(\{user_id\}\)/);
+  assert.match(privateClient, /replace\(\/\^VIX\[\\s-\]\*\//);
+  assert.doesNotMatch(privateClient, /replace\(\/\[\^A-F0-9-\]\//);
   assert.match(privateClient, /document\.execCommand\('copy'\)/);
   assert.match(privateClient, /A cópia automática foi bloqueada/);
   assert.match(fs.readFileSync('public/private.css', 'utf8'), /Vix Privado — painel social moderno/);
