@@ -49,6 +49,21 @@ test('painel moderno resume e localiza configurações administrativas', () => {
   assert.match(styles, /management-summary/);
 });
 
+test('janelas da comunidade usam cartões modernos e acessíveis', () => {
+  const styles = fs.readFileSync('public/modern-shell.css', 'utf8');
+  const html = fs.readFileSync('public/app/index.html', 'utf8');
+  assert.match(app, /community-modal/);
+  assert.match(app, /aria-modal/);
+  assert.match(app, /community-card-header/);
+  assert.match(app, /community-primary-action/);
+  assert.match(app, /if\(event\.key==='Escape'\)closeCommunity/);
+  assert.doesNotMatch(app, /id="community-close"[^>]+style=/);
+  assert.match(styles, /Janelas da comunidade/);
+  assert.match(styles, /\.community-card\{/);
+  assert.match(styles, /\.community-list-button:hover/);
+  assert.match(html, /app\.js\?v=community-1/);
+});
+
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
   const html = fs.readFileSync('public/app/index.html', 'utf8');
   const shell = fs.readFileSync('public/modern-shell.css', 'utf8');

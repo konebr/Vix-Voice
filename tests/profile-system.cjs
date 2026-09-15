@@ -67,7 +67,7 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(settings, /window\.vixNotify/);
   assert.match(privateClient, /window\.vixNotify/);
   assert.match(index, /settings-modern\.js\?v=themes-2/);
-  assert.match(index, /modern-shell\.css\?v=categories-6/);
+  assert.match(index, /modern-shell\.css\?v=categories-7/);
   assert.match(index, /settings-modern\.css\?v=ui-20260914-2/);
   assert.match(index, /ux-modern\.css\?v=ui-20260914-4/);
   assert.match(fs.readFileSync('public/ux-modern.css', 'utf8'), /#vix-global-loader\{display:none!important\}/);
