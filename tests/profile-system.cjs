@@ -84,7 +84,7 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(privateClient, /window\.vixNotify/);
   assert.match(index, /settings-modern\.js\?v=profile-style-1/);
   assert.match(index, /private\.js\?v=private-sfu-2/);
-  assert.match(index, /modern-shell\.css\?v=boosts-1/);
+  assert.match(index, /modern-shell\.css\?v=boosts-2/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /Fotos ocupam integralmente/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /background-size:cover!important/);
   assert.match(index, /settings-modern\.css\?v=profile-style-1/);
