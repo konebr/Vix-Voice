@@ -20,6 +20,7 @@ test('profile image validation accepts compact static and animated raster data U
 test('profiles persist and are shared with member surfaces', () => {
   const worker = fs.readFileSync('src/worker.js', 'utf8');
   const app = fs.readFileSync('public/app.js', 'utf8');
+  const settings = fs.readFileSync('public/settings-modern.js', 'utf8');
   const voice = fs.readFileSync('public/server-management.js', 'utf8');
   assert.match(worker, /u\.pathname==='\/api\/profile'/);
   assert.match(worker, /avatar TEXT DEFAULT/);
@@ -45,6 +46,12 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /memberCard\.classList\.add\('is-opening'\)/);
   assert.match(app, /profile-card-theme/);
   assert.match(app, /profile-card-effect/);
+  assert.match(settings, /inline-card-border/);
+  assert.match(settings, /inline-avatar-frame/);
+  assert.match(worker, /CARD_BORDERS/);
+  assert.match(worker, /AVATAR_FRAMES/);
+  assert.match(worker, /border_style TEXT DEFAULT/);
+  assert.match(app, /card-border-\$\{member\.card_border/);
   assert.match(app, /member-card-action/);
   assert.match(app, /card_theme:state\.identity\.card_theme/);
   assert.match(app, /syncedProfiles\.get\(serverId\)!==signature/);
@@ -72,12 +79,12 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(settings, /notificationPrefs/);
   assert.match(settings, /window\.vixNotify/);
   assert.match(privateClient, /window\.vixNotify/);
-  assert.match(index, /settings-modern\.js\?v=privacy-1/);
+  assert.match(index, /settings-modern\.js\?v=profile-style-1/);
   assert.match(index, /private\.js\?v=private-sfu-2/);
   assert.match(index, /modern-shell\.css\?v=categories-9/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /Fotos ocupam integralmente/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /background-size:cover!important/);
-  assert.match(index, /settings-modern\.css\?v=privacy-1/);
+  assert.match(index, /settings-modern\.css\?v=profile-style-1/);
   assert.match(index, /ux-modern\.css\?v=ui-20260914-4/);
   assert.match(fs.readFileSync('public/ux-modern.css', 'utf8'), /#vix-global-loader\{display:none!important\}/);
 });
