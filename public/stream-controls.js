@@ -1,6 +1,8 @@
 function screenCaptureOptions() {
-  const quality = readSettings().screenQuality || '720';
-  const fps = Number(readSettings().screenFps || 30);
+  const access = globalThis.vixStreamEntitlements?.() || { maxResolution: 720, maxFps: 30 };
+  const requestedQuality = readSettings().screenQuality || '720';
+  const quality = Number(requestedQuality) > access.maxResolution ? String(access.maxResolution) : requestedQuality;
+  const fps = Math.min(Number(readSettings().screenFps || 30), access.maxFps);
   const presets = { '480': { width: 854, height: 480 }, '720': { width: 1280, height: 720 }, '1080': { width: 1920, height: 1080 } };
   const preset = presets[quality] || presets['720'];
   return {
@@ -16,8 +18,10 @@ function prepareScreenStream(stream) {
 }
 
 function screenPublishOptions() {
-  const quality = readSettings().screenQuality || '720';
-  const fps = Number(readSettings().screenFps || 30);
+  const access = globalThis.vixStreamEntitlements?.() || { maxResolution: 720, maxFps: 30 };
+  const requestedQuality = readSettings().screenQuality || '720';
+  const quality = Number(requestedQuality) > access.maxResolution ? String(access.maxResolution) : requestedQuality;
+  const fps = Math.min(Number(readSettings().screenFps || 30), access.maxFps);
   const bitrate = { '480': 1400000, '720': 3500000, '1080': 6500000 }[quality] || 3500000;
   return { maxBitrate: Math.round(bitrate * (fps > 30 ? 1.35 : 1)), maxFramerate: fps, priority: 'high' };
 }
@@ -31,10 +35,11 @@ function screenPublishOptions() {
     box.style.cssText = 'display:grid;gap:7px;margin-top:10px;font-size:12px';
     const label = document.createElement('label'); label.textContent = 'Qualidade da transmissão ';
     const quality = document.createElement('select');
+    const access = globalThis.vixStreamEntitlements?.() || { maxResolution: 720 };
     for (const [value, text] of [['480', '480p · Econômica'], ['720', '720p · Equilibrada'], ['1080', '1080p · Alta']]) {
-      const option = document.createElement('option'); option.value = value; option.textContent = text; quality.append(option);
+      const option = document.createElement('option'); option.value = value; option.disabled = Number(value) > access.maxResolution; option.textContent = `${text}${option.disabled?' · Nível 2':''}`; quality.append(option);
     }
-    quality.value = readSettings().screenQuality || '720';
+    quality.value = Number(readSettings().screenQuality || 720) > access.maxResolution ? String(access.maxResolution) : readSettings().screenQuality || '720';
     quality.disabled = !!screenStream;
     quality.onchange = () => saveSettings({ screenQuality: quality.value });
     label.append(quality);

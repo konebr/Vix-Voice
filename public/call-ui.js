@@ -12,22 +12,25 @@
   }
   function streamSettings() {
     const box = document.createElement('details'); box.className = 'stream-settings compact-stream-settings'; box.open = readSettings().streamSettingsExpanded === true; box.ontoggle = () => saveSettings({ streamSettingsExpanded: box.open });
-    const current = readSettings().screenQuality || '720', fpsValue = Number(readSettings().screenFps || 30);
+    const access = globalThis.vixStreamEntitlements?.() || { level: 0, maxResolution: 720, maxFps: 30 };
+    const savedQuality = readSettings().screenQuality || '720', savedFps = Number(readSettings().screenFps || 30);
+    const current = Number(savedQuality) > access.maxResolution ? String(access.maxResolution) : savedQuality, fpsValue = Math.min(savedFps, access.maxFps);
     const head = document.createElement('summary'); head.className = 'stream-settings-head'; const heading = document.createElement('span'); heading.textContent = 'Transmissão'; const summary = document.createElement('small'); summary.textContent = `${current}p · ${fpsValue} FPS`; head.append(heading, summary);
     const selectors = document.createElement('div'); selectors.className = 'stream-selectors';
     const makeSelect = (labelText, values, selected, key) => {
       const label = document.createElement('label'); label.title = labelText;
       const select = document.createElement('select'); select.disabled = !!screenStream; select.setAttribute('aria-label', labelText);
-      for (const [value, text] of values) { const option = document.createElement('option'); option.value = value; option.textContent = text; option.selected = String(value) === String(selected); select.append(option); }
+      for (const [value, text, requiredLevel=0] of values) { const option = document.createElement('option'); option.value = value; option.disabled = access.level < requiredLevel; option.textContent = `${text}${option.disabled?` · Nível ${requiredLevel}`:''}`; option.selected = String(value) === String(selected); select.append(option); }
       select.onchange = () => { saveSettings({ [key]: key === 'screenFps' ? Number(select.value) : select.value }); renderVoicePanel(); }; label.append(select); return label;
     };
-    selectors.append(makeSelect('Resolução', [['480','480p'],['720','720p'],['1080','1080p']], current, 'screenQuality'), makeSelect('Fluidez', [[15,'15 FPS'],[30,'30 FPS'],[60,'60 FPS']], fpsValue, 'screenFps'));
+    selectors.append(makeSelect('Resolução', [['480','480p'],['720','720p'],['1080','1080p',2]], current, 'screenQuality'), makeSelect('Fluidez', [[15,'15 FPS'],[30,'30 FPS'],[60,'60 FPS',3]], fpsValue, 'screenFps'));
+    const boostHint=document.createElement('p');boostHint.className='stream-boost-hint';boostHint.textContent=access.level>=3?'Qualidade máxima liberada pelos impulsos.':access.level>=2?'1080p liberado · alcance o nível 3 para usar 60 FPS.':'1080p requer nível 2 · 60 FPS requer nível 3.';
     const audioLabel = document.createElement('label'); audioLabel.className = 'stream-audio-toggle';
     const copy = document.createElement('span'); copy.innerHTML = '<strong>Áudio</strong>';
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
-    audioLabel.append(copy, audio, toggle); const body = document.createElement('div'); body.className = 'stream-settings-body'; body.append(selectors, audioLabel); box.append(head, body); return box;
+    audioLabel.append(copy, audio, toggle); const body = document.createElement('div'); body.className = 'stream-settings-body'; body.append(selectors, boostHint, audioLabel); box.append(head, body); return box;
   }
   const baseRender = renderVoicePanel;
   renderVoicePanel = () => {

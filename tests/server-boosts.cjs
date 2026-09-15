@@ -19,10 +19,12 @@ test('impulsos beta persistem por conta e exibem níveis do servidor', () => {
   assert.match(app, /Distintivo de apoiador/);
   assert.match(app, /Moldura exclusiva/);
   assert.match(app, /Tema lendário/);
+  assert.match(app, /vixStreamEntitlements/);
+  assert.match(app, /Transmissões em 1080p/);
   assert.match(styles, /\.boost-dashboard\{/);
   assert.match(styles, /\.boost-gift\{/);
   assert.match(styles, /\.boost-levels\{/);
   assert.match(styles, /\.boost-supporters\{/);
   assert.match(html, /modern-shell\.css\?v=boosts-2/);
-  assert.match(html, /app\.js\?v=boosts-2/);
+  assert.match(html, /app\.js\?v=boosts-3/);
 });
