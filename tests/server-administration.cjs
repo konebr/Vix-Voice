@@ -96,4 +96,6 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(management, /aria-expanded/);
   assert.match(styles, /category-channel-group\.is-collapsed \.category-channel-rooms\{display:none\}/);
   assert.match(styles, /Navegação compacta de categorias/);
+  assert.match(styles, /Categorias com leitura e toque confortáveis/);
+  assert.match(styles, /Lista de membros com cartões amplos/);
 });
