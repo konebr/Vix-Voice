@@ -24,3 +24,12 @@ test('member list groups presence and orders roles', () => {
   assert.equal(context.readableRoleColor('#000000'), '#949494');
   assert.equal(context.readableRoleColor('#eb459e'), '#eb459e');
 });
+
+test('server switching updates identity immediately and loads members in parallel', () => {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  assert.match(source, /serverLoadSequence/);
+  assert.match(source, /loadSequence!==serverLoadSequence/);
+  assert.match(source, /serverMemberCache\.get\(serverId\)/);
+  assert.match(source, /membersRequest=api\(`\/api\/servers\/\$\{serverId\}\/members`\)/);
+  assert.match(source, /Promise\.allSettled\(\[serverRequest,membersRequest\]\)/);
+});
