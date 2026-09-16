@@ -52,6 +52,8 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(worker, /AVATAR_FRAMES/);
   assert.match(worker, /border_style TEXT DEFAULT/);
   assert.match(app, /card-border-\$\{member\.card_border/);
+  assert.match(fs.readFileSync('public/hud.css', 'utf8'), /member-gold-frame/);
+  assert.match(fs.readFileSync('public/hud.css', 'utf8'), /card-border-gold \.member-card-avatar::before/);
   assert.match(app, /member-card-action/);
   assert.match(app, /member-card-mutual/);
   assert.match(app, /member-card-chips/);
@@ -87,7 +89,7 @@ test('modern account settings provide inline profile, password security and noti
   assert.match(index, /modern-shell\.css\?v=boosts-2/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /Fotos ocupam integralmente/);
   assert.match(fs.readFileSync('public/modern-shell.css', 'utf8'), /background-size:cover!important/);
-  assert.match(index, /settings-modern\.css\?v=profile-style-1/);
+  assert.match(index, /settings-modern\.css\?v=profile-frame-2/);
   assert.match(index, /ux-modern\.css\?v=ui-20260914-4/);
   assert.match(fs.readFileSync('public/ux-modern.css', 'utf8'), /#vix-global-loader\{display:none!important\}/);
 });
