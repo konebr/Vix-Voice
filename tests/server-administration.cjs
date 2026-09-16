@@ -78,6 +78,8 @@ test('servidores aceitam foto personalizada e convite rápido compartilhável', 
   assert.match(management, /location\.origin}\/i\/\$\{encodeURIComponent\(invite\.code\)\}/);
   assert.match(worker, /shortInvite=u\.pathname\.match/);
   assert.match(worker, /Response\.redirect/);
+  assert.match(worker, /\['GET','HEAD'\]\.includes/);
+  assert.match(worker, /x-forwarded-proto/);
   assert.match(management, /expires_hours: 168/);
   assert.doesNotMatch(html, /Clube de jogos|data-tip="Estúdio"/);
   assert.match(shell, /\.server\.add\{display:grid!important;place-items:center!important/);
