@@ -13,6 +13,6 @@ assert.match(landing, /href="\/download\/Vix-Voice-Setup\.exe"/, 'a página inic
 assert.match(landing, /Electron\\\//, 'instalações antigas do Electron devem ser encaminhadas direto ao aplicativo');
 assert.match(webApp, /<base href="\/">/, 'a versão web deve carregar recursos pela raiz');
 assert.match(electron, /https:\/\/app\.vix-voice\.com\.br\/app\//, 'o Electron deve abrir diretamente o aplicativo');
-assert.match(invites, /location\.origin}\/app\/\?invite=/, 'convites devem abrir a versão web');
+assert.match(invites, /location\.origin}\/i\//, 'convites devem usar o link curto do domínio');
 
 console.log('landing and download navigation: ok');
