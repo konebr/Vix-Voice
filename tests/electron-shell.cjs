@@ -10,6 +10,10 @@ assert.match(source, /nodeIntegration:\s*false/, 'a integração Node deve perma
 assert.match(source, /sandbox:\s*true/, 'o sandbox do renderer deve permanecer ativo');
 assert.match(source, /setPermissionRequestHandler/, 'as permissões precisam de validação explícita');
 assert.match(source, /setDisplayMediaRequestHandler/, 'o compartilhamento de tela deve usar o seletor nativo do aplicativo');
+assert.match(source, /desktopCapturer\.getSources\(\{ types: \['screen', 'window'\]/, 'o aplicativo deve listar monitores e janelas abertas');
+assert.match(source, /Janelas e jogos/, 'o seletor deve identificar jogos e aplicativos separadamente');
+assert.match(source, /appIcon\.toDataURL/, 'janelas e jogos devem exibir o ícone do aplicativo quando disponível');
+assert.match(source, /audio: 'loopback'/, 'a transmissão no Windows deve incluir o áudio do computador quando solicitado');
 assert.match(source, /requestSingleInstanceLock/, 'somente uma instância deve executar por vez');
 assert.match(source, /new Tray\(/, 'o aplicativo deve continuar disponível na bandeja');
 assert.match(source, /globalShortcut\.register\('CommandOrControl\+Shift\+M'/, 'o desktop deve oferecer atalho global para o microfone');
