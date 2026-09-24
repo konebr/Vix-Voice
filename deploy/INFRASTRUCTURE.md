@@ -8,6 +8,14 @@
 
 Uma versão deve responder em `/api/auth/health` na homologação antes de ser instalada em produção.
 
+## Código e configuração
+
+Mantenha produção e homologação no mesmo commit aprovado, sem alterações manuais não registradas. Execute `npm test` na versão candidata e confira o endpoint de saúde antes e depois da publicação. O Worker usa o Wrangler instalado no sistema e os SDKs do navegador estão em `public/vendor`; não é necessário instalar Electron na VPS para executar o serviço.
+
+Os arquivos de `deploy/` representam os serviços e scripts instalados. Credenciais permanecem em `.dev.vars`, `/etc/livekit.yaml`, `/etc/turnserver.conf` e `/etc/vix-voice/`, fora do Git. Publicar código não deve substituir esses arquivos nem os bancos de produção e homologação. O instalador Windows possui publicação própria em `/var/www/vix-voice-downloads`.
+
+Antes do alinhamento de setembro de 2026, as cópias dos repositórios (incluindo o Git anterior) e configurações foram guardadas em `/var/backups/vix-voice-alignment/20260924-align`, com acesso restrito a root e checksums. Esse arquivo de recuperação contém credenciais e não deve ser publicado. Os bancos seguem o procedimento de backup descrito abaixo.
+
 ## Backups
 
 `vix-voice-backup.timer` cria diariamente um arquivo consistente e seu SHA-256. Rastros temporários de observabilidade são excluídos. `vix-voice-offsite.timer` envia a cópia validada para a VPS de contingência.

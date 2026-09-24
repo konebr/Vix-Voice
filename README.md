@@ -1,6 +1,12 @@
-# Vox Voice
+# Vix Voice
 
-Aplicativo de comunidades, mensagens e chamadas de voz, com interface web e backend Cloudflare Workers.
+Aplicativo de comunidades, mensagens e chamadas de voz, com interface web, backend compatível com Cloudflare Workers executado na VPS e mídia hospedada no LiveKit.
+
+## Ambiente atual
+
+Produção: `https://app.vix-voice.com.br`, código em `/opt/vix-voice/app`, serviço `vix-voice` e porta interna 8787. Homologação: `/opt/vix-voice/staging`, serviço `vix-voice-staging` e porta interna 8788, com banco separado. Consulte `deploy/INFRASTRUCTURE.md` antes de publicar.
+
+Execute `npm test` para os testes automatizados. Eles validam lógica e regressões, mas não substituem uma chamada real entre dois clientes para avaliar rede, áudio e transmissão.
 
 ## Usar no GitHub Codespaces
 
@@ -44,7 +50,7 @@ O monitor `deploy/vix-voice-health.timer` consulta o Worker e o banco de contas 
 
 O Worker local inicia com `--no-bundle` porque o código já está pronto para execução. Isso remove do processo permanente a etapa de empacotamento do esbuild e evita que uma falha desse processo derrube o serviço.
 
-Para restaurar na Oracle, primeiro copie o arquivo desejado para outro local. Pare `vix-voice`, renomeie o estado atual, extraia o arquivo na raiz `/home/ubuntu/vix-voice`, ajuste a propriedade de `.wrangler` para `ubuntu:ubuntu` e inicie o serviço. Mantenha também uma cópia fora da VM: os backups locais protegem contra erro e corrupção, mas não contra a perda do disco da instância.
+Na VPS atual, use `sudo vix-voice-restore /var/backups/vix-voice/vix-voice-DATA.tar.gz`, conforme `deploy/INFRASTRUCTURE.md`. O serviço usa o usuário `vixvoice` e o estado em `/opt/vix-voice/app/.wrangler/state`. Mantenha também uma cópia fora da VM: os backups locais protegem contra erro e corrupção, mas não contra a perda do disco da instância.
 
 ## Gerenciar servidores
 

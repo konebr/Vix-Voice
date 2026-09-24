@@ -5,10 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/vix-voice
+User=vixvoice
+WorkingDirectory=/opt/vix-voice/app
 Environment=WRANGLER_SEND_METRICS=false
-ExecStart=/usr/bin/wrangler dev --no-bundle --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8787 --persist-to /home/ubuntu/vix-voice/.wrangler/state --log-level error
+ExecStart=/usr/bin/wrangler dev --no-bundle --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8787 --persist-to /opt/vix-voice/app/.wrangler/state --log-level error
 Restart=always
 RestartSec=2
 
