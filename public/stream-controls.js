@@ -6,14 +6,14 @@ function screenCaptureOptions() {
   const presets = { '480': { width: 854, height: 480 }, '720': { width: 1280, height: 720 }, '1080': { width: 1920, height: 1080 } };
   const preset = presets[quality] || presets['720'];
   return {
-    video: { width: { ideal: preset.width }, height: { ideal: preset.height }, frameRate: { ideal: fps, max: fps }, resizeMode: 'none' },
+    video: { width: { ideal: preset.width, max: preset.width }, height: { ideal: preset.height, max: preset.height }, frameRate: { ideal: fps, max: fps }, resizeMode: 'crop-and-scale' },
     audio: readSettings().screenAudio !== false
   };
 }
 
 function prepareScreenStream(stream) {
   const track = stream?.getVideoTracks?.()[0];
-  if (track && 'contentHint' in track) track.contentHint = Number(readSettings().screenFps || 30) > 30 ? 'motion' : 'detail';
+  if (track && 'contentHint' in track) track.contentHint = 'motion';
   return stream;
 }
 

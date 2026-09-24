@@ -58,7 +58,7 @@ test('remote SFU audio is unlocked for browser and desktop playback', () => {
   assert.match(client, /globalThis\.unlockRemoteAudio/);
   assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
   assert.match(client, /document\.addEventListener\('pointerdown'/);
-  assert.match(html, /sfu-voice\.js\?v=ping-2/);
+  assert.match(html, /sfu-voice\.js\?v=screen-fluid-1/);
 });
 
 

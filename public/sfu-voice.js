@@ -8,7 +8,7 @@
       sdk.src = `/vendor/livekit-client.umd.js?v=2.22.3-recovery-1`;
       sdk.onload = () => {
         const adapter = document.createElement('script');
-        adapter.src = `/sfu-voice.js?v=ping-1`;
+        adapter.src = `/sfu-voice.js?v=screen-fluid-1`;
         document.body.append(adapter);
       };
       sdk.onerror = () => {
@@ -196,8 +196,9 @@
     let screenChanged = false;
     if (nextScreenVideo !== publishedScreenVideoTrack) {
       if (screenVideoPublication?.track) await room.localParticipant.unpublishTrack(screenVideoPublication.track, false).catch(() => {});
-      if (nextScreenVideo && 'contentHint' in nextScreenVideo) nextScreenVideo.contentHint = Number(readSettings().screenFps || 30) > 30 ? 'motion' : 'detail';
-      screenVideoPublication = nextScreenVideo ? await room.localParticipant.publishTrack(nextScreenVideo, { source: LK.Track.Source.ScreenShare, simulcast: true, videoEncoding: typeof screenPublishOptions === 'function' ? screenPublishOptions() : { maxBitrate: 3500000, maxFramerate: 30, priority: 'high' } }) : null;
+      if (nextScreenVideo && 'contentHint' in nextScreenVideo) nextScreenVideo.contentHint = 'motion';
+      // LiveKit uses screenShareEncoding for screens; videoEncoding only configures cameras.
+      screenVideoPublication = nextScreenVideo ? await room.localParticipant.publishTrack(nextScreenVideo, { source: LK.Track.Source.ScreenShare, simulcast: true, degradationPreference: 'maintain-framerate', screenShareEncoding: typeof screenPublishOptions === 'function' ? screenPublishOptions() : { maxBitrate: 3500000, maxFramerate: 30, priority: 'high' } }) : null;
       publishedScreenVideoTrack = nextScreenVideo;
       screenChanged = true;
     }
