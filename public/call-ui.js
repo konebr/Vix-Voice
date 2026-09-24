@@ -7,6 +7,8 @@
   function configure(button, icon, text, active, danger = false) {
     if (!button) return document.createElement('span');
     button.className = `call-action${active ? ' is-active' : ''}${danger ? ' is-danger' : ''}`;
+    button.title = button.getAttribute('aria-label') || text;
+    if (button.getAttribute('aria-label') !== labels.leave) button.setAttribute('aria-pressed', String(Boolean(active)));
     button.innerHTML = `<span class="call-action-icon" aria-hidden="true">${icon}</span><span>${text}</span>`;
     return button;
   }
@@ -19,6 +21,7 @@
     const selectors = document.createElement('div'); selectors.className = 'stream-selectors';
     const makeSelect = (labelText, values, selected, key) => {
       const label = document.createElement('label'); label.title = labelText;
+      const caption = document.createElement('span'); caption.className = 'stream-select-label'; caption.textContent = labelText; label.append(caption);
       const select = document.createElement('select'); select.disabled = !!screenStream; select.setAttribute('aria-label', labelText);
       for (const [value, text, requiredLevel=0] of values) { const option = document.createElement('option'); option.value = value; option.disabled = access.level < requiredLevel; option.textContent = `${text}${option.disabled?` · Nível ${requiredLevel}`:''}`; option.selected = String(value) === String(selected); select.append(option); }
       select.onchange = () => { saveSettings({ [key]: key === 'screenFps' ? Number(select.value) : select.value }); renderVoicePanel(); }; label.append(select); return label;
@@ -26,7 +29,7 @@
     selectors.append(makeSelect('Resolução', [['480','480p'],['720','720p'],['1080','1080p',2]], current, 'screenQuality'), makeSelect('Fluidez', [[15,'15 FPS'],[30,'30 FPS'],[60,'60 FPS',3]], fpsValue, 'screenFps'));
     const boostHint=document.createElement('p');boostHint.className='stream-boost-hint';boostHint.textContent=access.level>=3?'Qualidade máxima liberada pelos impulsos.':access.level>=2?'1080p liberado · alcance o nível 3 para usar 60 FPS.':'1080p requer nível 2 · 60 FPS requer nível 3.';
     const audioLabel = document.createElement('label'); audioLabel.className = 'stream-audio-toggle';
-    const copy = document.createElement('span'); copy.innerHTML = '<strong>Áudio</strong>';
+    const copy = document.createElement('span'); copy.innerHTML = '<strong>Incluir áudio da tela</strong>';
     const audio = document.createElement('input'); audio.type = 'checkbox'; audio.checked = readSettings().screenAudio !== false; audio.disabled = !!screenStream;
     audio.onchange = () => saveSettings({ screenAudio: audio.checked });
     const toggle = document.createElement('span'); toggle.className = 'switch';
@@ -38,7 +41,7 @@
     const panel = $('voice-state'); panel.classList.add('modern-call-panel');
     if (!microphoneStream) {
       panel.classList.remove('is-connected');
-      panel.innerHTML = '<div class="call-offline"><span class="call-status-dot"></span><div><strong>Fora da chamada</strong><small>Entre no canal Geral para conversar</small></div></div>';
+      panel.innerHTML = '<div class="call-offline"><span class="call-status-dot"></span><div><strong>Pronto para conversar</strong><small>Escolha um canal de voz para entrar</small></div></div>';
       return;
     }
     const micTrack = microphoneStream.getAudioTracks()[0];
@@ -49,7 +52,9 @@
     const leave = configure(findAction(panel, labels.leave), '☎', 'Sair da voz', false, true);
     leave.onclick = () => stopVoice();
     const header = document.createElement('header'); header.className = 'call-panel-head';
-    header.innerHTML = `<div><span class="call-status-dot${voiceRoomConnected ? '' : ' is-connecting'}"></span><strong>${voiceRoomConnected ? (screenStream ? 'Transmitindo' : 'Voz conectada') : 'Conectando…'}</strong></div><small>${selectedVoiceChannel.name}</small>`;
+    header.innerHTML = `<div><span class="call-status-dot${voiceRoomConnected ? '' : ' is-connecting'}"></span><strong>${voiceRoomConnected ? (screenStream ? 'Transmitindo' : 'Voz conectada') : 'Conectando…'}</strong></div><small></small>`;
+    header.querySelector('small').textContent = selectedVoiceChannel.name;
+    header.querySelector('small').title = selectedVoiceChannel.name;
     const primary = document.createElement('div'); primary.className = 'call-primary-actions'; primary.append(mic, sound, camera);
     const screenRow = document.createElement('div'); screenRow.className = 'call-screen-row'; screenRow.append(screen, leave);
     panel.replaceChildren(header, primary, screenRow, streamSettings()); panel.classList.add('is-connected');

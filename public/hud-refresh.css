@@ -1,0 +1,237 @@
+/* Vix Voice / Aurora — shared desktop and browser interface. */
+:root {
+  --hud-edge: color-mix(in srgb, var(--theme-accent) 11%, var(--theme-panel));
+  --hud-soft: color-mix(in srgb, var(--theme-panel) 68%, var(--theme-bg));
+  --hud-glow: color-mix(in srgb, var(--theme-accent) 16%, transparent);
+  --hud-ease: cubic-bezier(.2,.75,.25,1);
+}
+body { background: var(--theme-bg) !important; }
+.app {
+  width:100%; height:100dvh; min-height:0; padding:10px 10px 10px 0;
+  grid-template-columns:72px 252px minmax(0,1fr) 232px; gap:10px;
+  background:radial-gradient(ellipse at 12% 0,var(--hud-glow),transparent 42%),var(--theme-bg);
+  animation:hud-arrive .45s var(--hud-ease) both;
+}
+.app :is(button,a,input,select,summary) { -webkit-tap-highlight-color:transparent; }
+.app :is(button,[role=button],summary):focus-visible {
+  outline:2px solid var(--theme-accent); outline-offset:3px;
+}
+.app :is(.channels,.main,.members) {
+  min-height:0; border:1px solid var(--hud-edge); border-radius:18px;
+  box-shadow:0 12px 34px #00000015;
+}
+.app .servers {
+  gap:12px; padding:12px 0; border:0; background:transparent!important;
+  overflow-y:auto; scrollbar-width:none;
+}
+.app .server {
+  flex-shrink:0; width:46px; height:46px; border-radius:16px;
+  background:var(--hud-soft); box-shadow:none;
+  transition:transform .22s var(--hud-ease),border-radius .22s,box-shadow .22s,background .22s;
+}
+.app .server:hover { transform:translateY(-3px); border-radius:13px; box-shadow:0 8px 22px var(--hud-glow); }
+.app .server.active { box-shadow:0 0 0 3px var(--hud-glow),0 8px 24px var(--hud-glow); }
+.app .server::before { left:-12px!important; width:3px; border-radius:5px; box-shadow:none; }
+.app .server.home { background:linear-gradient(145deg,var(--theme-accent),#6554d9)!important; color:#fff; font-size:23px; }
+.app .divider { width:24px; margin:1px 0; opacity:.55; }
+.app .server.add { border:1px dashed color-mix(in srgb,var(--theme-accent) 35%,transparent); color:var(--theme-accent); }
+.app .channels { overflow:hidden; background:var(--hud-soft)!important; }
+.app .server-title {
+  height:64px; min-height:64px; padding:0 18px; border-color:var(--hud-edge);
+  background:transparent!important; font-size:15px; letter-spacing:-.025em;
+}
+.app .server-title button { width:28px; height:28px; background:var(--hud-glow); color:var(--theme-accent)!important; }
+.app #community-tools {
+  display:grid; grid-template-columns:1fr 1fr; gap:5px!important;
+  padding:12px!important; border-bottom:1px solid var(--hud-edge)!important;
+}
+.app #community-tools button {
+  min-width:0; min-height:36px; padding:8px!important; gap:7px!important;
+  background:transparent!important;
+  color:var(--vix-muted)!important; font-size:11px!important; border:1px solid transparent!important;
+  transition:background .18s,border-color .18s,color .18s,transform .18s;
+}
+.app #community-tools button span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.app #community-tools button:hover { border-color:var(--hud-edge)!important; background:var(--hud-glow)!important; color:var(--vix-text)!important; transform:translateY(-1px); }
+.app #community-tools button .vix-icon { width:15px; height:15px; color:var(--theme-accent); }
+.app .channel-scroll { padding:12px 9px; scrollbar-width:thin; scrollbar-color:var(--hud-edge) transparent; }
+.app .category-channel-group { margin:2px 0 18px; }
+.app .custom-channel-category { height:30px; padding:0 8px; margin:0 0 4px; gap:6px; font-size:10px; letter-spacing:.075em; }
+.app .custom-channel-category::before { height:12px; width:3px; opacity:.9; }
+.app .category-room-count { border:0; background:var(--hud-glow); color:var(--theme-accent); font-size:9px; }
+.app .custom-channel-category .category-add-room { margin-left:auto; }
+.app .category-channel-rooms { margin-left:9px; padding-left:7px; border-color:var(--hud-edge); }
+.app .channel {
+  min-height:38px; border-radius:10px; font-size:12px; font-weight:550; gap:9px;
+  transition:background .18s,color .18s,transform .2s var(--hud-ease),box-shadow .18s;
+}
+.app .channel:hover { transform:translateX(3px); background:var(--hud-glow)!important; }
+.app .channel.active {
+  border-color:color-mix(in srgb,var(--theme-accent) 24%,transparent)!important;
+  background:linear-gradient(100deg,var(--hud-glow),color-mix(in srgb,var(--theme-accent) 5%,transparent))!important;
+  box-shadow:inset 3px 0 var(--theme-accent)!important; color:var(--vix-text)!important;
+}
+.app .room-kind-icon { width:24px; height:24px; border-radius:7px; background:transparent; }
+.app .channel.active .room-kind-icon { color:var(--theme-accent); background:var(--hud-glow); box-shadow:none; }
+.app .voice-channel-button.selected { color:var(--vix-success)!important; background:color-mix(in srgb,var(--vix-success) 8%,transparent)!important; box-shadow:none!important; }
+.app .voice-users { margin-left:18px; }
+.app .voice-user { min-height:32px; font-size:11px; }
+.app .profile {
+  min-height:65px; padding:10px 12px; gap:9px; box-shadow:none; border-color:var(--hud-edge);
+  background:color-mix(in srgb,var(--theme-bg) 50%,var(--theme-panel))!important;
+}
+.app .profile>.avatar { width:35px; height:35px; border-width:1px; box-shadow:0 0 0 3px var(--hud-glow); }
+.app .profile-name { font-size:12px; }
+.app .profile button { width:29px; height:31px; border-radius:9px; }
+.app .profile button:hover { background:var(--hud-glow); transform:rotate(-5deg); }
+
+/* A quiet conversation canvas with a luminous, compact introduction. */
+.app .main { overflow:hidden; grid-template-rows:64px minmax(0,1fr); background:var(--theme-bg)!important; }
+.app .header {
+  height:64px; padding:0 22px; gap:10px; border-color:var(--hud-edge); box-shadow:none;
+  background:color-mix(in srgb,var(--theme-panel) 38%,var(--theme-bg))!important; backdrop-filter:none;
+}
+.app .header>.hash { display:grid; place-items:center; width:32px; height:32px; border:1px solid var(--hud-edge); border-radius:10px; background:var(--hud-glow); }
+.app #channel-title { font-size:14px; letter-spacing:-.02em; }
+.app .header small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+.app .header-actions { gap:3px; padding-left:0; }
+.app .header-actions span { width:30px; height:32px; }
+.app .header-actions span:hover { background:var(--hud-glow); color:var(--theme-accent); }
+.app .header>button:not(.mobile-menu) { border:1px solid color-mix(in srgb,var(--theme-accent) 38%,transparent)!important; border-radius:9px!important; padding:8px 12px!important; background:var(--hud-glow)!important; color:var(--vix-text)!important; font-size:11px!important; box-shadow:none; }
+.app .chat { background:radial-gradient(ellipse at 90% 0,color-mix(in srgb,var(--theme-accent) 4%,transparent),transparent 55%),var(--theme-bg)!important; }
+.app #messages { width:100%; max-width:1080px; padding:28px clamp(18px,2.8vw,42px) 18px; margin-inline:auto; scrollbar-width:thin; scrollbar-color:var(--hud-edge) transparent; }
+.app .welcome {
+  position:relative; isolation:isolate; overflow:hidden; padding:26px 28px; margin:0 0 28px;
+  border:1px solid color-mix(in srgb,var(--theme-accent) 22%,var(--theme-panel)); border-radius:18px;
+  background:linear-gradient(120deg,color-mix(in srgb,var(--theme-accent) 12%,var(--theme-bg)),var(--theme-bg));
+  box-shadow:inset 0 1px #ffffff05;
+}
+.app .welcome::before {
+  content:''; position:absolute; z-index:-1; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--vix-accent-2) 12%,transparent),transparent 60%);
+}
+.app .welcome::after {
+  content:'#'; position:absolute; z-index:-1; right:24px; top:-42px; font-size:230px; line-height:1.3;
+  font-weight:750; transform:rotate(-12deg); color:color-mix(in srgb,var(--theme-accent) 7%,transparent); pointer-events:none;
+}
+.app .welcome-icon { width:42px; height:42px; border:1px solid color-mix(in srgb,var(--theme-accent) 30%,transparent); border-radius:13px; background:var(--hud-glow); color:var(--theme-accent); box-shadow:none; }
+.app .welcome-icon .vix-icon { width:23px; height:23px; }
+.app .welcome h1 { max-width:100%; margin:17px 0 7px; font-size:clamp(20px,2vw,28px); line-height:1.15; letter-spacing:-.045em; overflow-wrap:anywhere; }
+.app .welcome p { font-size:12px; line-height:1.6; color:var(--vix-muted); }
+.app .message { margin:3px -10px; padding:10px; gap:12px; grid-template-columns:38px minmax(0,1fr); border-radius:12px; }
+.app .message:hover { background:color-mix(in srgb,var(--theme-accent) 5%,transparent)!important; }
+.app .message .avatar { box-shadow:none; }
+.app .message-head { font-size:13px; }
+.app .message-text { margin-top:4px; font-size:13px; line-height:1.65; }
+.app .message-time { font-size:10px; opacity:.8; }
+.app .compose { width:100%; max-width:1080px; margin-inline:auto; padding:12px clamp(18px,2.8vw,42px) 22px; background:transparent; }
+.app .compose-inner { min-height:52px; padding:0 10px 0 16px; border-radius:15px; border-color:var(--hud-edge); background:var(--hud-soft)!important; box-shadow:0 8px 25px #00000015; }
+.app .compose-inner:focus-within { border-color:color-mix(in srgb,var(--theme-accent) 65%,transparent); box-shadow:0 0 0 3px var(--hud-glow); }
+.app #message { height:50px; font-size:13px; }
+.app #send { width:34px; height:34px; border-radius:11px; background:linear-gradient(140deg,var(--theme-accent),#7665dc)!important; color:#fff; box-shadow:0 4px 12px var(--hud-glow); }
+.app #send:hover { transform:translateY(-2px); box-shadow:0 6px 18px var(--hud-glow); }
+
+/* Members keep their avatars, banners and earned profile decorations. */
+.app .members { padding:18px 10px; overflow-y:auto; background:var(--hud-soft)!important; scrollbar-width:thin; scrollbar-color:var(--hud-edge) transparent; }
+.app .member-list-toolbar { gap:3px; margin:0 1px 22px; padding:0 0 15px; border-color:var(--hud-edge); flex-wrap:wrap; }
+.app .member-list-toolbar>span { flex:1 0 100%; margin-bottom:8px; color:var(--vix-muted); font-size:10px; letter-spacing:.1em; }
+.app .member-list-toolbar button { flex:1; min-height:29px; border-radius:8px; font-size:10px; }
+.app .member-list-toolbar button.active { background:var(--hud-glow); border-color:color-mix(in srgb,var(--theme-accent) 20%,transparent); color:var(--theme-accent); }
+.app .member-section+.member-section { margin-top:25px; }
+.app .member-section-title { margin:0 8px 11px; font-size:9px; letter-spacing:.09em; }
+.app .member-section-title::after { background:var(--hud-edge); }
+.app .member { min-height:56px; margin:4px 0; padding:9px 8px; gap:9px; border-radius:12px; transition:background .2s,border-color .2s,transform .2s var(--hud-ease); }
+.app .member:hover { transform:translateX(-2px); border-color:color-mix(in srgb,var(--theme-accent) 25%,transparent); background-color:var(--hud-glow); }
+.app .member .avatar { width:34px; height:34px; flex:none; box-shadow:none; }
+.app .member-name { font-size:12px; }
+.app .member-role { margin-top:4px; font-size:10px; }
+.app .member.is-offline { opacity:.72; }
+.app .member.is-offline:hover { opacity:1; }
+
+/* Voice dock: status first, controls second, optional settings last. */
+.app .voice-state.modern-call-panel {
+  margin:8px 10px 10px; padding:0; max-height:55dvh; flex-shrink:0;
+  border:1px solid color-mix(in srgb,var(--theme-accent) 20%,var(--theme-panel)); border-radius:15px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--theme-panel) 88%,var(--theme-accent)),var(--theme-bg));
+  box-shadow:0 6px 22px #00000020; color:var(--vix-text);
+}
+.app .call-panel-head { position:relative; grid-template-columns:minmax(0,1fr) auto; gap:5px 8px; padding:13px 12px 11px; border-color:var(--hud-edge); }
+.app .call-panel-head>div { grid-column:1; gap:7px; }
+.app .call-panel-head strong { font-size:11px; font-weight:700; color:var(--vix-success); }
+.app .call-panel-head>small { grid-column:1; grid-row:2; width:max-content; max-width:100%; padding:0 0 0 14px; background:transparent; border-radius:0; color:var(--vix-muted); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app .call-status-dot { width:6px; height:6px; box-shadow:0 0 0 3px color-mix(in srgb,var(--vix-success) 12%,transparent); }
+.app .connection-ping { grid-column:2; grid-row:1 / 3; align-self:center; padding:5px 6px; border:1px solid color-mix(in srgb,var(--vix-success) 20%,transparent); border-radius:7px; background:color-mix(in srgb,var(--vix-success) 6%,transparent); box-shadow:none; }
+.app .connection-ping strong { font-size:10px; color:inherit; }
+.app .call-primary-actions { gap:5px; padding:9px 9px 6px; }
+.app .call-action {
+  min-height:49px; padding:9px 2px!important; gap:6px; border-radius:10px!important;
+  border:1px solid var(--hud-edge)!important; background:var(--hud-soft)!important; color:var(--vix-muted)!important;
+  font-size:10px!important; font-weight:600; cursor:pointer;
+  transition:background .18s,border-color .18s,transform .2s var(--hud-ease),box-shadow .2s;
+}
+.app .call-action:hover { transform:translateY(-2px); border-color:color-mix(in srgb,var(--theme-accent) 45%,transparent)!important; box-shadow:0 5px 12px #00000018; }
+.app .call-action:active { transform:translateY(0) scale(.97); }
+.app .call-action.is-active { border-color:color-mix(in srgb,var(--vix-success) 16%,transparent)!important; background:color-mix(in srgb,var(--vix-success) 7%,var(--theme-bg))!important; color:var(--vix-success)!important; }
+.app .call-action.is-active .call-action-icon { color:var(--vix-success); }
+.app .call-action.is-danger { border-color:color-mix(in srgb,var(--vix-danger) 18%,transparent)!important; background:color-mix(in srgb,var(--vix-danger) 7%,var(--theme-bg))!important; color:var(--vix-danger)!important; }
+.app .call-screen-row { gap:6px; padding:0 9px 10px; grid-template-columns:minmax(0,1fr) 36px; }
+.app .call-screen-row .call-action { height:36px!important; min-height:36px; font-size:10px!important; }
+.app .call-screen-row .call-action:first-child:not(.is-danger) { background:var(--hud-glow)!important; border-color:color-mix(in srgb,var(--theme-accent) 26%,transparent)!important; color:var(--vix-text)!important; }
+.app .call-screen-row .call-action:last-child>span:last-child { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.app .call-action:disabled { opacity:.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.app .compact-stream-settings { border-color:var(--hud-edge); background:transparent; }
+.app .compact-stream-settings .stream-settings-head { height:37px; padding:0 12px; font-size:10px; color:var(--vix-muted); }
+.app .compact-stream-settings .stream-settings-head:hover { background:var(--hud-glow); color:var(--vix-text); }
+.app .compact-stream-settings .stream-settings-head span::before { color:var(--theme-accent); }
+.app .compact-stream-settings .stream-settings-head small { font-size:9px; color:var(--vix-muted); }
+.app .stream-settings-body { padding:3px 10px 12px; }
+.app .stream-selectors { gap:7px; }
+.app .stream-selectors label { display:grid; gap:5px; color:var(--vix-muted); font-size:9px; }
+.app .stream-selectors select { height:31px; border-color:var(--hud-edge); border-radius:8px; background:var(--theme-bg); color:var(--vix-text); font-size:10px; }
+.app .stream-boost-hint { margin:8px 0 0; padding:0; border:0; background:transparent; color:var(--vix-muted); font-size:9px; line-height:1.55; }
+.app .stream-settings-body .stream-audio-toggle { justify-content:space-between; margin-top:9px; padding:8px 0 0; border-top:1px solid var(--hud-edge); }
+.app .stream-audio-toggle strong { color:var(--vix-text); font-size:10px; }
+.app .call-offline { padding:15px 12px; color:var(--vix-muted); }
+.app .call-offline strong { color:var(--vix-text); font-size:11px; }
+.app .call-offline small { display:block; margin-top:5px; color:var(--vix-muted); font-size:10px; }
+.app .call-offline .call-status-dot { background:var(--vix-muted); box-shadow:none; }
+.app .connection-details { margin:0 9px 9px; border-color:var(--hud-edge); background:var(--theme-bg); }
+.app .connection-metrics div { background:var(--hud-soft); }
+
+/* Native overlays enter softly; no perpetual animations during calls. */
+.join-modal:not([hidden])>.join-card,.community-overlay:not([hidden])>.community-card { animation:hud-dialog .22s var(--hud-ease) both; }
+@keyframes hud-arrive { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+@keyframes hud-dialog { from { opacity:0; transform:translateY(10px) scale(.985); } to { opacity:1; transform:none; } }
+@media(min-width:1600px) { .app { grid-template-columns:76px 270px minmax(0,1fr) 250px; gap:14px; padding-top:14px; padding-bottom:14px; padding-right:14px; } }
+@media(max-width:1150px) { .app { grid-template-columns:62px 238px minmax(0,1fr) 210px; gap:8px; } .app .header { padding-inline:16px; } .app .header small { display:none; } .app .header-actions { gap:0; } }
+@media(max-width:980px) { .app { grid-template-columns:62px 244px minmax(0,1fr); } .app .members { display:none; } }
+@media(max-width:600px) {
+  .app { grid-template-columns:54px minmax(0,1fr); gap:5px; padding:5px 5px 5px 0; }
+  .app .server { width:38px; height:38px; border-radius:13px; }
+  .app .servers { gap:10px; padding-top:9px; }
+  .app .main { border-radius:14px; grid-template-rows:56px minmax(0,1fr); }
+  .app .header { height:56px; padding-inline:10px; gap:6px; }
+  .app .header>.hash { display:none!important; }
+  .app .header-actions span { width:25px; }
+  .app .header>button:not(.mobile-menu) { padding:7px 8px!important; font-size:10px!important; }
+  .app .channels { top:5px!important; bottom:5px!important; left:54px!important; border-radius:14px; box-shadow:18px 0 55px #0007; }
+  .app #messages { padding:18px 14px; }
+  .app .welcome { padding:22px 18px; margin-bottom:18px; }
+  .app .welcome h1 { font-size:22px; }
+  .app .compose { padding:8px 10px 12px; }
+  .app .compose-inner { gap:7px; padding-left:10px; }
+  .app #message { font-size:12px; }
+}
+@media(max-height:680px) and (min-width:601px) {
+  .app { padding-block:6px; }
+  .app .server-title { height:52px; min-height:52px; }
+  .app #community-tools { padding:8px!important; gap:2px!important; }
+  .app .profile { min-height:56px; }
+  .app .call-panel-head { padding-block:9px; }
+  .app .call-action { min-height:43px; padding-block:7px!important; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .app,.app *,.app *::before,.app *::after,.join-modal>.join-card,.community-overlay>.community-card {
+    animation:none!important; transition:none!important; scroll-behavior:auto!important;
+  }
+}
