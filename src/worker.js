@@ -883,3 +883,15 @@ Servers.prototype.fetch=async function(request){
   if(request.method==='GET'&&url.pathname===`/api/servers/${serverId}/manage`){const data=await response.json();data.categories=[...this.c.storage.sql.exec('SELECT * FROM channel_categories WHERE server_id=? ORDER BY position,created',serverId)];data.textChannels=[...this.c.storage.sql.exec('SELECT name,category_id,position,topic FROM channels WHERE server_id=? ORDER BY position,rowid',serverId)];data.voiceChannels=[...this.c.storage.sql.exec('SELECT id,name,created,category_id,position FROM voice_channels WHERE server_id=? ORDER BY position,created,name',serverId)];return j(data)}
   return response;
 };
+
+// Enrich the server member list with a badge state scoped to the current server.
+const supporterBadgeFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)\/members$/);
+  const response=await supporterBadgeFetch.call(this,request);
+  if(request.method!=='GET'||!match||!response.ok)return response;
+  this.ensureServerBoosts();
+  const data=await response.json(),supporters=new Set([...this.c.storage.sql.exec('SELECT user_id FROM server_boosts WHERE server_id=?',match[1])].map(item=>item.user_id));
+  data.members=(data.members||[]).map(member=>({...member,is_booster:supporters.has(member.user_id)}));
+  return j(data);
+};
