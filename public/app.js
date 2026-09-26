@@ -228,7 +228,7 @@ function showMemberProfileCard(member,event){
   const chips=node('div','member-card-chips');
   const role=node('span','member-card-chip member-role-chip',memberRoleLabel(member.role));
   role.style.setProperty('--chip-color',member.role_color||member.color||'#9da4b2');
-  chips.append(role,node('span',`member-card-chip presence-${presence}`,presenceText));
+  chips.append(role);
   if(isServerBooster(member))chips.append(node('span','member-card-chip server-supporter-chip','Apoiador do servidor'));
   if(member.profile_badge)chips.append(node('span','member-card-chip member-custom-chip',member.profile_badge));
   body.append(identityLine,metadata,mutual);
