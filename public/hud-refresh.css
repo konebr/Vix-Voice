@@ -277,3 +277,25 @@ body { background: var(--theme-bg) !important; }
 @media(max-width:380px) { #member-profile-card .member-card-identity>strong { font-size:19px; } }
 @keyframes supporter-medallion-shine { 0%,68% { background-position:-25px 0; opacity:0; } 76% { opacity:.8; } 94%,100% { background-position:30px 0; opacity:0; } }
 @media(prefers-reduced-motion:reduce) { #member-profile-card .server-supporter-badge,#member-profile-card .server-supporter-badge::before,#member-profile-card .server-supporter-badge::after { animation:none!important; } }
+
+/* Modern role, presence and supporter highlights */
+#member-profile-card .member-card-chips { gap:7px; margin-top:13px; padding-top:0; }
+#member-profile-card .member-card-chip { position:relative; min-height:26px; padding:5px 10px 5px 7px; border-color:color-mix(in srgb,var(--chip-color,var(--profile-accent)) 42%,#ffffff18); background:linear-gradient(135deg,color-mix(in srgb,var(--chip-color,var(--profile-accent)) 19%,#151a24),color-mix(in srgb,var(--chip-color,var(--profile-accent)) 7%,#0c1018)); box-shadow:inset 0 1px #ffffff12,0 5px 13px #0004; color:#eef1f7; font-size:9px; font-weight:800; letter-spacing:.012em; transition:border-color .18s ease,filter .18s ease,transform .18s ease,box-shadow .18s ease; }
+#member-profile-card .member-card-chip:hover { border-color:color-mix(in srgb,var(--chip-color,var(--profile-accent)) 72%,#ffffff28); box-shadow:inset 0 1px #ffffff18,0 7px 17px #0006; filter:brightness(1.12) saturate(1.1); transform:translateY(-1px); }
+#member-profile-card .member-card-chip::before { display:grid; width:15px; height:15px; place-items:center; flex:none; border:1px solid color-mix(in srgb,var(--chip-color,var(--profile-accent)) 52%,transparent); border-radius:5px; background:color-mix(in srgb,var(--chip-color,var(--profile-accent)) 24%,#111620); box-shadow:inset 0 1px #ffffff16,0 0 8px color-mix(in srgb,var(--chip-color,var(--profile-accent)) 22%,transparent); color:color-mix(in srgb,var(--chip-color,var(--profile-accent)) 55%,white); font-size:7px; }
+#member-profile-card .member-role-chip::before { border-radius:4px; content:"◆"; }
+#member-profile-card .member-card-chip.presence-online { --chip-color:#35d992; border-color:#35d99266; background:linear-gradient(135deg,#174331aa,#111e1a 72%); color:#baffd9; }
+#member-profile-card .member-card-chip.presence-online::before { border-color:#49eba57a; border-radius:50%; background:#35d992; box-shadow:inset 0 0 0 4px #173c2d,0 0 9px #35d99288; content:""; }
+#member-profile-card .member-card-chip.presence-idle { --chip-color:#e4ad39; color:#ffe6a8; }
+#member-profile-card .member-card-chip.presence-dnd { --chip-color:#ef5364; color:#ffc1c8; }
+#member-profile-card .member-card-chip.presence-offline { --chip-color:#778093; color:#c3c9d4; }
+#member-profile-card .member-card-chip.presence-idle::before,#member-profile-card .member-card-chip.presence-dnd::before,#member-profile-card .member-card-chip.presence-offline::before { border-radius:50%; content:""; box-shadow:inset 0 0 0 4px #171c26,0 0 8px color-mix(in srgb,var(--chip-color) 48%,transparent); }
+#member-profile-card .member-card-chip.server-supporter-chip { --chip-color:#ffc968; border-color:#ffc96870; background:linear-gradient(135deg,#5a3e18,#251d15 70%); color:#ffe7aa; }
+#member-profile-card .member-card-chip.server-supporter-chip::before { border-color:#ffe09a70; border-radius:50%; background:radial-gradient(circle,#a97726,#4b3012); box-shadow:inset 0 0 0 1px #fff2b226,0 0 8px #ffc14e42; content:"✦"; color:#fff6ca; font-size:10px; text-shadow:0 0 5px #ffd45b; }
+#member-profile-card .member-custom-chip::before { content:"✦"; }
+#member-profile-card.is-opening .member-card-chip { animation:member-chip-arrive .32s cubic-bezier(.2,.8,.2,1) both; }
+#member-profile-card.is-opening .member-card-chip:nth-child(2) { animation-delay:.04s; }
+#member-profile-card.is-opening .member-card-chip:nth-child(3) { animation-delay:.08s; }
+#member-profile-card.is-opening .member-card-chip:nth-child(4) { animation-delay:.12s; }
+@keyframes member-chip-arrive { from { opacity:0; transform:translateY(5px) scale(.96); } to { opacity:1; transform:none; } }
+@media(prefers-reduced-motion:reduce) { #member-profile-card.is-opening .member-card-chip { animation:none!important; } }
