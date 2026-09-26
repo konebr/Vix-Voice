@@ -39,6 +39,14 @@ test('antispam e transferência de propriedade possuem validações no servidor'
   assert.match(worker, /OWNERSHIP_TRANSFER/);
 });
 
+test('somente o criador delega a permissão de gerenciar cargos', () => {
+  assert.match(worker, /manageRoles:can\('MANAGE_ROLES'\)/);
+  assert.match(worker, /Somente o criador pode criar cargos que gerenciam cargos/);
+  assert.match(worker, /Somente o criador pode alterar cargos que gerenciam cargos/);
+  assert.match(worker, /Somente o criador pode atribuir cargos que gerenciam cargos/);
+  assert.match(management, /\['MANAGE_ROLES','ADMINISTRATOR'\]\.includes\(permission\.key\)/);
+});
+
 test('painel moderno resume e localiza configurações administrativas', () => {
   const styles = fs.readFileSync('public/server-management.css', 'utf8');
   assert.match(management, /management-summary/);
@@ -61,7 +69,7 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=member-context-1/);
+  assert.match(html, /app\.js\?v=member-context-2/);
 });
 
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {

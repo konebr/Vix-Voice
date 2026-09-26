@@ -43,7 +43,10 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /Copiar ID do usuário/);
   assert.match(app, /Mencionar/);
   assert.match(app, /openServerManagement\?\.\('members'\)/);
-  assert.match(app, /navigator\.clipboard\.writeText\(member\.user_id\)/);
+  assert.match(app, /openServerManagement\?\.\('roles'\)/);
+  assert.match(app, /navigator\.clipboard\.writeText\(value\)/);
+  assert.match(app, /document\.execCommand\('copy'\)/);
+  assert.match(app, /A cópia automática foi bloqueada/);
   assert.match(app, /groupServerMembersByRole/);
   assert.match(app, /profile-banner-file/);
   assert.match(app, /image\/gif/);
