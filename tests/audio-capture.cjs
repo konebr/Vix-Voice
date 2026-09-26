@@ -68,3 +68,11 @@ test('voice gate preserves the beginning of speech with look-ahead audio', () =>
   assert.ok(audibleOnset >= 1100 && audibleOnset <= 1300, `onset rendered at sample ${audibleOnset}`);
   assert.match(source, /sampleRate \* \.024/);
 });
+
+test('local speaking indicator uses the configured threshold without visual lag', () => {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  assert.match(source, /speechAnalyser\.fftSize=256/);
+  assert.match(source, /speechAnalyser\.smoothingTimeConstant=0/);
+  assert.match(source, /levelDb>=threshold/);
+  assert.match(source, /box-shadow \.04s linear/);
+});
