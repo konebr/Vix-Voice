@@ -52,3 +52,19 @@ test('processed microphone is centered equally across stereo output', () => {
   assert.match(source, /centeredVoice\.channelCountMode='explicit'/);
   assert.match(source, /processed\.connect\(centeredVoice\);processed=centeredVoice/);
 });
+
+test('voice gate preserves the beginning of speech with look-ahead audio', () => {
+  const source = fs.readFileSync('public/microphone-processor.js', 'utf8');
+  let Processor;
+  class AudioWorkletProcessor { constructor() { this.port = { onmessage: null, postMessage() {} }; } }
+  const context = { sampleRate: 48000, AudioWorkletProcessor, registerProcessor: (_name, implementation) => { Processor = implementation; } };
+  vm.createContext(context); vm.runInContext(source, context);
+  const gate = new Processor(), rendered = [];
+  const process = input => { const output = new Float32Array(128); gate.process([[input]], [[output]]); rendered.push(...output); };
+  process(new Float32Array(128));
+  const onset = new Float32Array(128); onset[0] = 1; process(onset);
+  for (let index = 0; index < 10; index++) process(new Float32Array(128));
+  const audibleOnset = rendered.findIndex(sample => Math.abs(sample) > .1);
+  assert.ok(audibleOnset >= 1100 && audibleOnset <= 1300, `onset rendered at sample ${audibleOnset}`);
+  assert.match(source, /sampleRate \* \.024/);
+});
