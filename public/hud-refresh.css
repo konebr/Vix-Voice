@@ -315,6 +315,18 @@ body { background: var(--theme-bg) !important; }
 #member-context-menu.opens-left .member-context-submenu { right:calc(100% + 8px); left:auto; }
 .member-context-item:hover>.member-context-submenu,.member-context-item:focus-within>.member-context-submenu { display:block; }
 .member-context-item.is-danger { color:#ff9ba4; }
+.member-context-submenu.member-role-picker { width:244px; max-height:min(520px,calc(100vh - 24px)); overflow-y:auto; padding:8px; scrollbar-width:thin; }
+.member-role-picker-status { padding:12px 10px; color:#929aab; font-size:12px; }
+.member-role-picker-status.is-error { color:#ff9ba4; }
+.member-role-option { display:grid; grid-template-columns:14px minmax(0,1fr) 20px; align-items:center; gap:10px; width:100%; min-height:38px; padding:7px 8px; border:0; border-radius:7px; background:transparent; color:#e7eaf1; text-align:left; cursor:pointer; transition:background-color .14s ease,color .14s ease; }
+.member-role-option:hover:not(:disabled),.member-role-option:focus-visible { outline:0; background:#ffffff0d; color:#fff; }
+.member-role-option:disabled { cursor:default; opacity:1; }
+.member-role-option:disabled:not([aria-checked="true"]) { opacity:.44; }
+.member-role-swatch { width:12px; height:12px; border-radius:50%; box-shadow:0 0 0 2px #ffffff0a; }
+.member-role-option>span:nth-child(2) { overflow:hidden; font-size:12px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+.member-role-check { display:grid; width:19px; height:19px; place-items:center; border:1px solid #687184; border-radius:5px; color:#bec5ff; font-size:12px; font-weight:900; }
+.member-role-option[aria-checked="true"] .member-role-check { border-color:color-mix(in srgb,var(--theme-accent) 70%,white); background:color-mix(in srgb,var(--theme-accent) 35%,#232938); box-shadow:0 0 12px color-mix(in srgb,var(--theme-accent) 20%,transparent); }
+.member-role-picker .member-role-manage { margin-top:2px; }
 @keyframes member-context-in { from { opacity:0; transform:translateY(4px) scale(.98); } to { opacity:1; transform:none; } }
 @media(max-width:560px) { #member-context-menu { width:min(246px,calc(100vw - 16px)); } .member-context-submenu { right:0; left:auto; top:calc(100% + 4px); } }
 @media(prefers-reduced-motion:reduce) { #member-context-menu { animation:none; } }
