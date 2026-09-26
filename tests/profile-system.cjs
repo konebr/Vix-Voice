@@ -46,6 +46,9 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /message-mention/);
   assert.match(app, /showMemberProfileCard\(knownMembers\.get/);
   assert.match(app, /@everyone/);
+  assert.match(app, /mention-autocomplete/);
+  assert.match(app, /renderMentionAutocomplete/);
+  assert.match(app, /Mencionar todos os membros/);
   assert.match(app, /openServerManagement\?\.\('members'\)/);
   assert.match(app, /openServerManagement\?\.\('roles'\)/);
   assert.match(app, /createRolePickerSubmenu/);

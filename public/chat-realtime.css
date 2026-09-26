@@ -7,5 +7,15 @@
 .message-mention{display:inline;padding:1px 4px;border:0;border-radius:5px;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 28%,transparent);color:#cbc7ff;font:inherit;font-weight:750;line-height:inherit;cursor:pointer;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
 .message-mention:hover,.message-mention:focus-visible{outline:0;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 50%,transparent);color:#fff;box-shadow:0 0 0 1px color-mix(in srgb,var(--theme-accent,#7c69ff) 45%,transparent),0 0 14px color-mix(in srgb,var(--theme-accent,#7c69ff) 18%,transparent)}
 .message-mention.is-everyone{background:color-mix(in srgb,var(--theme-accent,#7c69ff) 32%,transparent);color:color-mix(in srgb,var(--theme-accent,#7c69ff) 42%,white);cursor:default}
+.compose{position:relative}
+.compose-inner:focus-within{outline:0!important;border-color:var(--hud-edge,#ffffff12)!important;box-shadow:none!important}
+#message:focus{outline:0!important;box-shadow:none!important}
+#mention-autocomplete{position:absolute;z-index:80;right:16px;bottom:calc(100% - 2px);left:16px;max-height:min(420px,55vh);padding:8px;overflow-y:auto;border:1px solid color-mix(in srgb,var(--theme-accent,#7c69ff) 22%,#ffffff10);border-radius:12px;background:linear-gradient(155deg,#252a35fa,#171b24fc);box-shadow:0 18px 46px #000b;backdrop-filter:blur(18px)}
+#mention-autocomplete[hidden]{display:none}
+.mention-suggestion{display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:10px;width:100%;min-height:46px;padding:6px 9px;border:0;border-radius:8px;background:transparent;color:#e8ebf2;text-align:left;cursor:pointer}
+.mention-suggestion:hover,.mention-suggestion.is-selected{background:color-mix(in srgb,var(--theme-accent,#7c69ff) 24%,#ffffff08)}
+.mention-suggestion>span:first-child{display:grid;width:30px;height:30px;place-items:center;border-radius:50%;background:#303746;color:white;background-position:center;background-size:cover;font-size:11px;font-weight:850}
+.mention-suggestion>span:last-child{display:grid;min-width:0}.mention-suggestion strong{overflow:hidden;color:#f5f6fa;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.mention-suggestion small{overflow:hidden;margin-top:2px;color:#929aaa;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.mention-suggestion .mention-everyone-icon{background:color-mix(in srgb,var(--theme-accent,#7c69ff) 45%,#242a36);color:color-mix(in srgb,var(--theme-accent,#7c69ff) 35%,white);font-size:16px}
 @keyframes unread-pop{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.channel-unread{animation:none}}

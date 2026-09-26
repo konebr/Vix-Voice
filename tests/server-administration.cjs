@@ -77,7 +77,7 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=mention-click-1/);
+  assert.match(html, /app\.js\?v=mention-autocomplete-1/);
 });
 
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
