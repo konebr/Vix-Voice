@@ -40,7 +40,7 @@ test('menções e digitação estão ligadas à interface e às notificações',
 });
 
 test('ativos do chat são carregados e participam da atualização automática', () => {
-  assert.match(html, /chat-realtime\.css\?v=mention-click-1/);
+  assert.match(html, /chat-realtime\.css\?v=mention-theme-1/);
   assert.match(html, /chat-realtime\.js\?v=chat-2/);
   assert.ok(html.indexOf('settings-modern.js') < html.indexOf('chat-realtime.js'));
   assert.match(app, /'\/chat-realtime\.js'/);
