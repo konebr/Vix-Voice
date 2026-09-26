@@ -166,7 +166,10 @@
       const settings = readSettings(), prefs = participantPreferences(id);
       item.audio.muted = deafened || (!item.screen && Boolean(prefs.muted));
     }
-    for (const row of document.querySelectorAll('.voice-user[data-voice-user-id]')) row.dataset.speaking = String(active.has(row.dataset.voiceUserId));
+    for (const row of document.querySelectorAll('.voice-user[data-voice-user-id]')) {
+      if (row.dataset.voiceUserId === state.identity?.id) continue;
+      row.dataset.speaking = String(active.has(row.dataset.voiceUserId));
+    }
   }
 
   async function syncPublishedMedia() {
