@@ -47,6 +47,14 @@ test('somente o criador delega a permissão de gerenciar cargos', () => {
   assert.match(management, /\['MANAGE_ROLES','ADMINISTRATOR'\]\.includes\(permission\.key\)/);
 });
 
+test('membros podem acumular vários cargos com permissões combinadas', () => {
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS member_role_assignments/);
+  assert.match(worker, /permissions\|=Number\(role\.permissions/);
+  assert.match(worker, /assignedRoleIds/);
+  assert.match(worker, /body\.assigned!==false/);
+  assert.match(worker, /INSERT OR IGNORE INTO member_role_assignments VALUES/);
+});
+
 test('painel moderno resume e localiza configurações administrativas', () => {
   const styles = fs.readFileSync('public/server-management.css', 'utf8');
   assert.match(management, /management-summary/);
@@ -69,7 +77,7 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=member-context-3/);
+  assert.match(html, /app\.js\?v=multi-role-1/);
 });
 
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
