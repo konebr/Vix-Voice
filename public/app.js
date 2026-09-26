@@ -234,9 +234,8 @@ function showMemberProfileCard(member,event){
   mutualCopy.append(node('strong','',state.server?.name||'Vix Voice'),node('small','','Servidor em comum'));
   mutual.append(serverMark,mutualCopy);
   const chips=node('div','member-card-chips');
-  const role=node('span','member-card-chip member-role-chip',memberRoleLabel(member.role));
-  role.style.setProperty('--chip-color',member.role_color||member.color||'#9da4b2');
-  chips.append(role);
+  const memberRoles=Array.isArray(member.roles)&&member.roles.length?member.roles:[{id:member.role_id,name:memberRoleLabel(member.role),color:member.role_color||member.color||'#9da4b2'}];
+  for(const assignedRole of memberRoles){const role=node('span','member-card-chip member-role-chip',memberRoleLabel(assignedRole.name));role.style.setProperty('--chip-color',assignedRole.color||'#9da4b2');chips.append(role)}
   if(isServerBooster(member))chips.append(node('span','member-card-chip server-supporter-chip','Apoiador do servidor'));
   if(member.profile_badge)chips.append(node('span','member-card-chip member-custom-chip',member.profile_badge));
   body.append(identityLine,metadata,mutual);
