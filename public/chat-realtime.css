@@ -4,5 +4,9 @@
 .message.is-mention{margin:2px -8px;padding:7px 8px;border-left:3px solid #f0b232;border-radius:3px;background:#f0b23218}
 .message.is-mention:hover{background:#f0b23224}
 .message.is-mention .message-text{color:#f5f6f8}
+.message-mention{display:inline;padding:1px 4px;border:0;border-radius:5px;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 28%,transparent);color:#cbc7ff;font:inherit;font-weight:750;line-height:inherit;cursor:pointer;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
+.message-mention:hover,.message-mention:focus-visible{outline:0;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 50%,transparent);color:#fff;box-shadow:0 0 0 1px color-mix(in srgb,var(--theme-accent,#7c69ff) 45%,transparent),0 0 14px color-mix(in srgb,var(--theme-accent,#7c69ff) 18%,transparent)}
+.message-mention.is-everyone{background:#f0b2322e;color:#ffd978;cursor:default}
+.message.is-mention{border-left-color:var(--theme-accent,#f0b232);background:linear-gradient(90deg,color-mix(in srgb,var(--theme-accent,#7c69ff) 20%,transparent),transparent 76%)}
 @keyframes unread-pop{from{opacity:0;transform:scale(.65)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.channel-unread{animation:none}}
