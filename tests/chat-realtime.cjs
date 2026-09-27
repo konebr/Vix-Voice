@@ -108,4 +108,8 @@ test('Vix Bot responde comandos e mantém uma fila musical por servidor', () => 
   assert.match(worker, /requested_by:user\.id/);
   assert.match(app, /item\.author_id==='vix-bot'/);
   assert.match(app, /result\.messages\|\|\[result\.message\]/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS bot_voice_sessions/);
+  assert.match(worker, /Entre em uma sala de voz antes de pedir uma música/);
+  assert.match(worker, /INSERT OR REPLACE INTO voice_presence VALUES/);
+  assert.match(worker, /user_id="vix-bot"/);
 });
