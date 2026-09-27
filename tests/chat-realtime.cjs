@@ -120,4 +120,8 @@ test('Vix Bot responde comandos e mantém uma fila musical por servidor', () => 
   assert.match(worker, /command==='\/tocando'/);
   assert.match(worker, /command==='\/membros'/);
   assert.match(worker, /vixBotPlayback/);
+  assert.match(worker, /command==='\/clear'/);
+  assert.match(worker, /Apenas o Criador e os Administradores/);
+  assert.match(worker, /INSERT OR REPLACE INTO message_deletions/);
+  assert.match(worker, /CHAT_CLEAR/);
 });
