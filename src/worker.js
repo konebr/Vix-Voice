@@ -648,6 +648,19 @@ Servers.prototype.fetch=async function(request){
   return j(data);
 };
 
+// Aplica a recepção configurada e o intervalo de mensagens no ponto final da cadeia.
+const communityEnforcementFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),join=url.pathname.match(/^\/api\/servers\/join\/([\w-]+)$/),message=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages$/),user=await this.user(request);
+  let beforeMember=false,serverId='',body=null;
+  if(join&&request.method==='POST'&&user){const invitation=one(this.c.storage.sql.exec('SELECT server_id FROM server_invites WHERE code=?',join[1]))||one(this.c.storage.sql.exec('SELECT id AS server_id FROM servers WHERE invite=?',join[1]));serverId=invitation?.server_id||'';beforeMember=Boolean(serverId&&this.member(serverId,user))}
+  if(message&&request.method==='POST'&&user){serverId=message[1];this.ensureCommunitySuite(serverId);body=await request.clone().json().catch(()=>({}));const settings=this.communitySettings(serverId),isCommand=String(body.text||'').trim().startsWith('/');if(Number(settings?.rules_required)&&!this.can(serverId,user,'MANAGE_MESSAGES')&&!one(this.c.storage.sql.exec('SELECT accepted FROM rules_acceptances WHERE server_id=? AND user_id=?',serverId,user.id)))return j({error:'Aceite as regras do servidor antes de enviar mensagens.'},403);if(!isCommand&&Number(settings?.slowmode_seconds)>0&&!this.can(serverId,user,'MANAGE_MESSAGES')){this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS community_message_times(server_id TEXT,user_id TEXT,last_message INTEGER,PRIMARY KEY(server_id,user_id))');const saved=one(this.c.storage.sql.exec('SELECT last_message FROM community_message_times WHERE server_id=? AND user_id=?',serverId,user.id)),wait=Number(settings.slowmode_seconds)*1000-(Date.now()-Number(saved?.last_message||0));if(wait>0)return j({error:`Modo lento ativo. Aguarde ${Math.ceil(wait/1000)} segundo(s).`},429)}}
+  const response=await communityEnforcementFetch.call(this,request);
+  if(message&&request.method==='POST'&&response.ok&&user&&body&&!String(body.text||'').trim().startsWith('/'))this.c.storage.sql.exec('INSERT OR REPLACE INTO community_message_times VALUES(?,?,?)',serverId,user.id,Date.now());
+  if(join&&request.method==='POST'&&response.ok&&user&&serverId&&!beforeMember&&this.member(serverId,user)){this.ensureCommunitySuite(serverId);const settings=this.communitySettings(serverId);if(Number(settings?.welcome_enabled)){const channel=one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,settings.welcome_channel))?.name||one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? ORDER BY rowid LIMIT 1',serverId))?.name;if(channel)this.vixBotMessage(serverId,channel,String(settings.welcome_message||'Boas-vindas, {usuario}!').replaceAll('{usuario}',user.name));}if(settings?.auto_role_id&&one(this.c.storage.sql.exec('SELECT id FROM server_roles WHERE server_id=? AND id=? AND position<>0',serverId,settings.auto_role_id)))this.c.storage.sql.exec('INSERT OR IGNORE INTO member_role_assignments VALUES(?,?,?)',serverId,user.id,settings.auto_role_id)}
+  return response;
+};
+
 // Vix Bot: comandos nativos do servidor e fila musical compartilhada.
 const vixBotFetch=Servers.prototype.fetch;
 Servers.prototype.ensureVixBot=function(){
@@ -746,6 +759,57 @@ Servers.prototype.fetch=async function(request){
     for(const peer of peers?.values?.()||[])if(peer.joined&&now-Number(peer.updated||0)<=15000){connections.add(`${serverId}:${peer.user.id}`);rooms.add(`${serverId}:${peer.channel||'Geral'}`)}
   }
   return new Response(JSON.stringify({voiceConnections:connections.size,voiceRooms:rooms.size}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+};
+
+// Central de comunidade: eventos, anúncios, boas-vindas e moderação por comandos.
+const communitySuiteFetch=Servers.prototype.fetch;
+Servers.prototype.ensureCommunitySuite=function(serverId){
+  this.ensureAdvancedAdministration?.(serverId);
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS server_events(id TEXT PRIMARY KEY,server_id TEXT,title TEXT,description TEXT,starts_at INTEGER,channel_id TEXT,created_by TEXT,created INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS event_responses(event_id TEXT,user_id TEXT,response TEXT,updated INTEGER,PRIMARY KEY(event_id,user_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS community_settings(server_id TEXT PRIMARY KEY,welcome_enabled INTEGER,welcome_channel TEXT,welcome_message TEXT,auto_role_id TEXT,rules_required INTEGER,announcement_channel TEXT,slowmode_seconds INTEGER,updated INTEGER)');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS rules_acceptances(server_id TEXT,user_id TEXT,accepted INTEGER,PRIMARY KEY(server_id,user_id))');
+  this.c.storage.sql.exec('INSERT OR IGNORE INTO community_settings VALUES(?,0,"boas-vindas","Boas-vindas, {usuario}! Leia as regras e aproveite o servidor.","",0,"",0,?)',serverId,Date.now());
+};
+Servers.prototype.communitySettings=function(serverId){return one(this.c.storage.sql.exec('SELECT * FROM community_settings WHERE server_id=?',serverId))};
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)(?:\/|$)/);
+  if(!match)return communitySuiteFetch.call(this,request);
+  const serverId=match[1],user=await this.user(request);if(!user)return j({error:'Não autenticado'},401);
+  if(!this.member(serverId,user))return communitySuiteFetch.call(this,request);
+  this.ensureCommunitySuite(serverId);
+  const settingsPath=`/api/servers/${serverId}/community-settings`,eventsPath=`/api/servers/${serverId}/events`,rulesPath=`/api/servers/${serverId}/rules/accept`,eventItem=url.pathname.match(new RegExp(`^/api/servers/${serverId}/events/([\\w-]+)(?:/(going|interested|declined))?$`));
+  if(url.pathname===rulesPath&&request.method==='POST'){this.c.storage.sql.exec('INSERT OR REPLACE INTO rules_acceptances VALUES(?,?,?)',serverId,user.id,Date.now());return j({ok:true})}
+  if(url.pathname===settingsPath){
+    if(request.method==='GET')return j({settings:{...this.communitySettings(serverId),rules_accepted:Boolean(one(this.c.storage.sql.exec('SELECT accepted FROM rules_acceptances WHERE server_id=? AND user_id=?',serverId,user.id)))}});
+    if(request.method!=='PATCH')return j({error:'Método inválido'},405);
+    if(!this.can(serverId,user,'MANAGE_SERVER'))return j({error:'Sem permissão para configurar a comunidade.'},403);
+    const current=this.communitySettings(serverId),body=await request.json().catch(()=>({})),welcomeEnabled=body.welcome_enabled?1:0,welcomeChannel=String(body.welcome_channel||current.welcome_channel||'boas-vindas').slice(0,32),welcomeMessage=String(body.welcome_message||current.welcome_message||'').trim().slice(0,300),autoRole=String(body.auto_role_id||'').slice(0,80),rulesRequired=body.rules_required?1:0,announcementChannel=String(body.announcement_channel||'').slice(0,32),slowmode=Math.max(0,Math.min(21600,Number(body.slowmode_seconds)||0));
+    this.c.storage.sql.exec('INSERT OR REPLACE INTO community_settings VALUES(?,?,?,?,?,?,?,?,?)',serverId,welcomeEnabled,welcomeChannel,welcomeMessage,autoRole,rulesRequired,announcementChannel,slowmode,Date.now());this.audit?.(serverId,user,'COMMUNITY_SETTINGS',serverId,'Comunidade','Eventos, anúncios e boas-vindas atualizados');return j({settings:this.communitySettings(serverId)});
+  }
+  if(url.pathname===eventsPath){
+    if(request.method==='GET'){const events=[...this.c.storage.sql.exec('SELECT server_events.*, (SELECT COUNT(*) FROM event_responses WHERE event_id=server_events.id AND response="going") AS going_count,(SELECT response FROM event_responses WHERE event_id=server_events.id AND user_id=?) AS viewer_response FROM server_events WHERE server_id=? AND starts_at>? ORDER BY starts_at LIMIT 50',user.id,serverId,Date.now()-86400000)];return j({events})}
+    if(request.method==='POST'){if(!this.can(serverId,user,'MANAGE_SERVER')&&!this.can(serverId,user,'MANAGE_CHANNELS'))return j({error:'Sem permissão para criar eventos.'},403);const body=await request.json().catch(()=>({})),title=String(body.title||'').trim().slice(0,80),description=String(body.description||'').trim().slice(0,400),startsAt=Number(body.starts_at),channelId=String(body.channel_id||'').slice(0,80);if(title.length<3||!Number.isFinite(startsAt)||startsAt<Date.now()-60000)return j({error:'Informe nome e data futura para o evento.'},400);const event={id:crypto.randomUUID(),server_id:serverId,title,description,starts_at:startsAt,channel_id:channelId,created_by:user.id,created:Date.now()};this.c.storage.sql.exec('INSERT INTO server_events VALUES(?,?,?,?,?,?,?,?)',event.id,serverId,title,description,startsAt,channelId,user.id,event.created);this.audit?.(serverId,user,'EVENT_CREATE',event.id,title,'Evento agendado');return j({event},201)}
+  }
+  if(eventItem){const event=one(this.c.storage.sql.exec('SELECT * FROM server_events WHERE id=? AND server_id=?',eventItem[1],serverId));if(!event)return j({error:'Evento não encontrado.'},404);if(eventItem[2]&&request.method==='POST'){this.c.storage.sql.exec('INSERT OR REPLACE INTO event_responses VALUES(?,?,?,?)',event.id,user.id,eventItem[2],Date.now());return j({ok:true,response:eventItem[2]})}if(request.method==='DELETE'){if(!this.can(serverId,user,'MANAGE_SERVER')&&!this.can(serverId,user,'MANAGE_CHANNELS'))return j({error:'Sem permissão para excluir eventos.'},403);this.c.storage.sql.exec('DELETE FROM event_responses WHERE event_id=?',event.id);this.c.storage.sql.exec('DELETE FROM server_events WHERE id=?',event.id);return j({ok:true})}}
+  const response=await communitySuiteFetch.call(this,request);
+  if(request.method==='GET'&&url.pathname===`/api/servers/${serverId}/manage`&&response.ok){const data=await response.json();data.community=this.communitySettings(serverId);data.events=[...this.c.storage.sql.exec('SELECT * FROM server_events WHERE server_id=? ORDER BY starts_at LIMIT 30',serverId)];return j(data)}
+  return response;
+};
+
+const communityBotCommand=Servers.prototype.runVixBotCommand;
+Servers.prototype.runVixBotCommand=async function(serverId,user,channel,source){
+  const original=await communityBotCommand.call(this,serverId,user,channel,source);if(original)return original;
+  const [raw,...rest]=String(source||'').trim().split(/\s+/),command=raw.toLowerCase(),argument=rest.join(' ').trim();
+  if(!['/mute','/silenciar','/timeout','/kick','/expulsar','/ban','/slowmode','/lento','/anunciar'].includes(command))return null;if(!one(this.c.storage.sql.exec('SELECT bot_id FROM bot_installations WHERE server_id=? AND bot_id="vix"',serverId)))return null;
+  const server=one(this.c.storage.sql.exec('SELECT owner FROM servers WHERE id=?',serverId));this.ensureRoleSystem(serverId);const administrator=one(this.c.storage.sql.exec('SELECT role_id FROM member_role_assignments WHERE server_id=? AND user_id=? AND role_id=?',serverId,user.id,`${serverId}-admin`));if(server?.owner!==user.id&&!administrator)return this.vixBotMessage(serverId,channel,'🔒 Apenas o Criador e os Administradores podem usar este comando.');
+  this.ensureCommunitySuite(serverId);
+  if(command==='/slowmode'||command==='/lento'){const seconds=Math.max(0,Math.min(21600,Number.parseInt(argument,10)||0)),saved=this.communitySettings(serverId);this.c.storage.sql.exec('UPDATE community_settings SET slowmode_seconds=?,updated=? WHERE server_id=?',seconds,Date.now(),serverId);return this.vixBotMessage(serverId,channel,seconds?`🐢 Modo lento configurado em ${seconds} segundos.`:'⚡ Modo lento desativado.')}
+  if(command==='/anunciar'){if(!argument)return this.vixBotMessage(serverId,channel,'📣 Use `/anunciar sua mensagem`.');const settings=this.communitySettings(serverId),target=settings?.announcement_channel||channel;return this.vixBotMessage(serverId,target,`📣 **ANÚNCIO DE ${user.name.toUpperCase()}**\n${argument}`)}
+  const match=argument.match(/^@?([^\s]+)(?:\s+(\d+))?/);if(!match)return this.vixBotMessage(serverId,channel,`⚠️ Use \`${command} @usuario${['/mute','/silenciar','/timeout'].includes(command)?' minutos':''}\`.`);const target=one(this.c.storage.sql.exec('SELECT user_id,name FROM member_profiles WHERE server_id=? AND lower(name)=lower(?)',serverId,match[1]));if(!target)return this.vixBotMessage(serverId,channel,'⚠️ Usuário não encontrado neste servidor.');if(target.user_id===server.owner)return this.vixBotMessage(serverId,channel,'🔒 O Criador do servidor não pode ser moderado.');
+  if(command==='/kick'||command==='/expulsar'){this.removeMember(serverId,target.user_id);this.audit(serverId,user,'MEMBER_KICK',target.user_id,target.name,'Expulso por comando');return this.vixBotMessage(serverId,channel,`👢 ${target.name} foi expulso.`)}
+  if(command==='/ban'){this.c.storage.sql.exec('INSERT OR REPLACE INTO server_bans VALUES(?,?,?,?,?,?)',serverId,target.user_id,target.name,'Banido por comando',user.id,Date.now());this.removeMember(serverId,target.user_id);this.audit(serverId,user,'MEMBER_BAN',target.user_id,target.name,'Banido por comando');return this.vixBotMessage(serverId,channel,`⛔ ${target.name} foi banido.`)}
+  const minutes=Math.max(1,Math.min(10080,Number.parseInt(match[2],10)||10)),type=['/mute','/silenciar'].includes(command)?'mute':'timeout';this.c.storage.sql.exec('INSERT OR REPLACE INTO member_sanctions VALUES(?,?,?,?,?,?,?)',serverId,target.user_id,type,Date.now()+minutes*60000,'Aplicado por comando',user.id,Date.now());this.disconnectVoiceMember(serverId,target.user_id,type==='mute'?'Silenciamento aplicado':'Timeout aplicado');this.audit(serverId,user,`MEMBER_${type.toUpperCase()}`,target.user_id,target.name,`${minutes} min`);return this.vixBotMessage(serverId,channel,`${type==='mute'?'🔇':'⏳'} ${target.name}: ${minutes} minuto(s).`);
 };
 
 // Administração avançada: acessos por canal, fila de entrada, sanções e proteção contra spam.
@@ -952,4 +1016,12 @@ Servers.prototype.fetch=async function(request){
   const data=await response.json(),supporters=new Set([...this.c.storage.sql.exec('SELECT user_id FROM server_boosts WHERE server_id=?',match[1])].map(item=>item.user_id));
   data.members=(data.members||[]).map(member=>({...member,is_booster:supporters.has(member.user_id)}));
   return j(data);
+};
+
+// A recepção precisa envolver também as rotas de entrada tratadas pelas camadas administrativas.
+const finalCommunityFetch=Servers.prototype.fetch;
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),join=url.pathname.match(/^\/api\/servers\/join\/([\w-]+)$/);if(!join||request.method!=='POST')return finalCommunityFetch.call(this,request);
+  const user=await this.user(request);if(!user)return finalCommunityFetch.call(this,request);const invitation=one(this.c.storage.sql.exec('SELECT server_id FROM server_invites WHERE code=?',join[1]))||one(this.c.storage.sql.exec('SELECT id AS server_id FROM servers WHERE invite=?',join[1])),serverId=invitation?.server_id||'',already=Boolean(serverId&&this.member(serverId,user)),response=await finalCommunityFetch.call(this,request);
+  if(response.ok&&serverId&&!already&&this.member(serverId,user)){this.ensureCommunitySuite(serverId);const settings=this.communitySettings(serverId);if(Number(settings?.welcome_enabled)){const channel=one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? AND name=?',serverId,settings.welcome_channel))?.name||one(this.c.storage.sql.exec('SELECT name FROM channels WHERE server_id=? ORDER BY rowid LIMIT 1',serverId))?.name;if(channel)this.vixBotMessage(serverId,channel,String(settings.welcome_message||'Boas-vindas, {usuario}!').replaceAll('{usuario}',user.name))}if(settings?.auto_role_id&&one(this.c.storage.sql.exec('SELECT id FROM server_roles WHERE server_id=? AND id=? AND position<>0',serverId,settings.auto_role_id)))this.c.storage.sql.exec('INSERT OR IGNORE INTO member_role_assignments VALUES(?,?,?)',serverId,user.id,settings.auto_role_id)}return response;
 };
