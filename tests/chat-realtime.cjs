@@ -41,13 +41,15 @@ test('menções e digitação estão ligadas à interface e às notificações',
 
 test('o destaque da caixa aparece imediatamente antes de carregar os membros', () => {
   assert.match(app, /function messageMentionsViewer\(value,name=state\.identity\?\.name\)/);
-  assert.match(app, /item\.author_id!==state\.identity\?\.id&&messageMentionsViewer\(item\.text\)/);
-  assert.match(app, /row\.dataset\.userId!==state\.identity\?\.id&&messageMentionsViewer\(text\)/);
+  assert.match(app, /classList\.toggle\('has-mention',messageMentionsViewer\(item\.text\)\)/);
+  assert.match(app, /closest\('\.message'\)\?\.classList\.toggle\('has-mention',messageMentionsViewer\(text\)\)/);
+  assert.match(client, /classList\.toggle\('is-mention', isMention\(message\.text, state\.identity\?\.name\)\)/);
+  assert.match(client, /message\.author_id === state\.identity\?\.id \|\| !isMention/);
 });
 
 test('ativos do chat são carregados e participam da atualização automática', () => {
   assert.match(html, /chat-realtime\.css\?v=mention-highlight-2/);
-  assert.match(html, /chat-realtime\.js\?v=chat-3/);
+  assert.match(html, /chat-realtime\.js\?v=chat-4/);
   assert.ok(html.indexOf('settings-modern.js') < html.indexOf('chat-realtime.js'));
   assert.match(app, /'\/chat-realtime\.js'/);
   assert.match(app, /'\/chat-realtime\.css'/);

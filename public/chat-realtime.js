@@ -79,7 +79,7 @@
       const message = messages[index];
       if (!message) return;
       row.dataset.messageId = message.id;
-      row.classList.toggle('is-mention', message.author_id !== state.identity?.id && isMention(message.text, state.identity?.name));
+      row.classList.toggle('is-mention', isMention(message.text, state.identity?.name));
     });
   }
 
