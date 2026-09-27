@@ -7,6 +7,7 @@
 .message-mention{display:inline;padding:1px 4px;border:0;border-radius:5px;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 28%,transparent);color:#cbc7ff;font:inherit;font-weight:750;line-height:inherit;cursor:pointer;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
 .message-mention:hover,.message-mention:focus-visible{outline:0;background:color-mix(in srgb,var(--theme-accent,#7c69ff) 50%,transparent);color:#fff;box-shadow:0 0 0 1px color-mix(in srgb,var(--theme-accent,#7c69ff) 45%,transparent),0 0 14px color-mix(in srgb,var(--theme-accent,#7c69ff) 18%,transparent)}
 .message-mention.is-everyone{background:color-mix(in srgb,var(--theme-accent,#7c69ff) 32%,transparent);color:color-mix(in srgb,var(--theme-accent,#7c69ff) 42%,white);cursor:default}
+.message.is-bot .avatar{background:linear-gradient(145deg,#8b5cf6,#4f46e5);color:#fff;box-shadow:0 0 0 2px #8b5cf633,0 6px 18px #4f46e533}.message.is-bot .message-head{color:#c9c3ff}.bot-badge{display:inline-grid;place-items:center;margin-left:6px;padding:1px 5px;border-radius:4px;background:linear-gradient(135deg,#7c69ff,#5c55dc);color:#fff;font-size:8px;font-weight:900;letter-spacing:.06em;vertical-align:2px}.message.is-bot .message-text{white-space:pre-line}
 .compose{position:relative}
 .compose-inner:focus-within{outline:0!important;border-color:var(--hud-edge,#ffffff12)!important;box-shadow:none!important}
 #message:focus{outline:0!important;box-shadow:none!important}

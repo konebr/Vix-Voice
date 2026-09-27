@@ -648,6 +648,31 @@ Servers.prototype.fetch=async function(request){
   return j(data);
 };
 
+// Vix Bot: comandos nativos do servidor e fila musical compartilhada.
+const vixBotFetch=Servers.prototype.fetch;
+Servers.prototype.ensureVixBot=function(){
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS bot_music_queue(id TEXT PRIMARY KEY,server_id TEXT,channel TEXT,query TEXT,requested_by TEXT,requested_name TEXT,created INTEGER,status TEXT)');
+};
+Servers.prototype.vixBotMessage=function(serverId,channel,text){const now=Date.now(),message={id:crypto.randomUUID(),server_id:serverId,channel,author:'Vix Bot',author_id:'vix-bot',text:String(text).slice(0,1000),created:now,edited:0,reply_to:'',updated:now};this.c.storage.sql.exec('INSERT INTO messages(id,server_id,channel,author,author_id,text,created,edited,reply_to,updated) VALUES(?,?,?,?,?,?,?,?,?,?)',message.id,message.server_id,message.channel,message.author,message.author_id,message.text,message.created,0,'',now);return message};
+Servers.prototype.runVixBotCommand=function(serverId,user,channel,source){
+  const [rawCommand,...parts]=String(source||'').trim().split(/\s+/),command=rawCommand.toLocaleLowerCase('pt-BR'),argument=parts.join(' ').trim();this.ensureVixBot();
+  if(command==='/ajuda'||command==='/help')return this.vixBotMessage(serverId,channel,'✨ **Vix Bot**\n`/ajuda` comandos disponíveis\n`/ping` verifica o bot\n`/servidor` mostra informações do servidor\n`/musica <nome ou link>` adiciona à fila musical\n`/fila` mostra os pedidos de música\n`/parar` limpa a fila (moderação)');
+  if(command==='/ping')return this.vixBotMessage(serverId,channel,'🏓 Pong! Estou online e pronto para ajudar.');
+  if(command==='/servidor'){const server=one(this.c.storage.sql.exec('SELECT name,created FROM servers WHERE id=?',serverId)),members=Number(one(this.c.storage.sql.exec('SELECT COUNT(*) AS total FROM members WHERE server_id=?',serverId))?.total||0),channels=Number(one(this.c.storage.sql.exec('SELECT COUNT(*) AS total FROM channels WHERE server_id=?',serverId))?.total||0);return this.vixBotMessage(serverId,channel,`📊 **${server?.name||'Servidor'}**\n${members} membros · ${channels} salas de texto`)}
+  if(command==='/musica'||command==='/música'||command==='/play'){
+    if(!argument)return this.vixBotMessage(serverId,channel,'🎵 Use `/musica nome ou link` para adicionar um pedido.');
+    const entry={id:crypto.randomUUID(),server_id:serverId,channel,query:argument.slice(0,240),requested_by:user.id,requested_name:user.name,created:Date.now(),status:'queued'};this.c.storage.sql.exec('INSERT INTO bot_music_queue VALUES(?,?,?,?,?,?,?,?)',entry.id,entry.server_id,entry.channel,entry.query,entry.requested_by,entry.requested_name,entry.created,entry.status);const position=Number(one(this.c.storage.sql.exec('SELECT COUNT(*) AS total FROM bot_music_queue WHERE server_id=? AND status="queued"',serverId))?.total||1);return this.vixBotMessage(serverId,channel,`🎶 **Adicionado à fila #${position}**\n${entry.query}\nPedido por ${user.name}. O player de voz do Vix Bot está em preparação.`)
+  }
+  if(command==='/fila'||command==='/queue'){const queue=[...this.c.storage.sql.exec('SELECT query,requested_name FROM bot_music_queue WHERE server_id=? AND status="queued" ORDER BY created LIMIT 10',serverId)];return this.vixBotMessage(serverId,channel,queue.length?`🎼 **Fila musical**\n${queue.map((item,index)=>`${index+1}. ${item.query} — ${item.requested_name}`).join('\n')}`:'🎼 A fila musical está vazia.')}
+  if(command==='/parar'||command==='/stop'){if(!this.can(serverId,user,'MANAGE_MESSAGES'))return this.vixBotMessage(serverId,channel,'🔒 Somente a moderação pode limpar a fila musical.');this.c.storage.sql.exec('DELETE FROM bot_music_queue WHERE server_id=?',serverId);return this.vixBotMessage(serverId,channel,'⏹️ A fila musical foi limpa.')}
+  return null;
+};
+Servers.prototype.fetch=async function(request){
+  const url=new URL(request.url),match=url.pathname.match(/^\/api\/servers\/([\w-]+)\/messages$/),body=match&&request.method==='POST'?await request.clone().json().catch(()=>({})):null,response=await vixBotFetch.call(this,request);
+  if(!body||!response.ok||!String(body.text||'').trim().startsWith('/'))return response;
+  const user=await this.user(request);if(!user)return response;const data=await response.json(),botMessage=this.runVixBotCommand(match[1],user,String(body.channel||'').slice(0,32),body.text);if(!botMessage)return j(data);return j({...data,messages:[data.message,botMessage],bot:botMessage});
+};
+
 // Segurança de conta: limite de login e gerenciamento de dispositivos conectados.
 const secureUsersFetch=Users.prototype.fetch;
 function sessionDevice(userAgent=''){

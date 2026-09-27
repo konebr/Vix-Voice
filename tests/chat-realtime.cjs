@@ -48,7 +48,7 @@ test('o destaque da caixa aparece imediatamente antes de carregar os membros', (
 });
 
 test('ativos do chat são carregados e participam da atualização automática', () => {
-  assert.match(html, /chat-realtime\.css\?v=mention-highlight-2/);
+  assert.match(html, /chat-realtime\.css\?v=vix-bot-1/);
   assert.match(html, /chat-realtime\.js\?v=chat-4/);
   assert.ok(html.indexOf('settings-modern.js') < html.indexOf('chat-realtime.js'));
   assert.match(app, /'\/chat-realtime\.js'/);
@@ -98,4 +98,14 @@ test('mensagens fixadas exigem moderação e aparecem no painel do canal', () =>
   assert.match(actions, /capabilities\?\.manageMessages/);
   assert.match(actions, /Mensagens fixadas/);
   assert.match(actions, /async function loadPins/);
+});
+
+test('Vix Bot responde comandos e mantém uma fila musical por servidor', () => {
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS bot_music_queue/);
+  assert.match(worker, /runVixBotCommand/);
+  assert.match(worker, /command==='\/ajuda'/);
+  assert.match(worker, /command==='\/musica'/);
+  assert.match(worker, /requested_by:user\.id/);
+  assert.match(app, /item\.author_id==='vix-bot'/);
+  assert.match(app, /result\.messages\|\|\[result\.message\]/);
 });
