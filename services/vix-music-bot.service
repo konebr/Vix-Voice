@@ -1,0 +1,16 @@
+[Unit]
+Description=Vix Voice Music Bot
+After=network-online.target vix-voice-livekit.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vixvoice
+WorkingDirectory=/opt/vix-voice/app
+EnvironmentFile=/opt/vix-voice/app/.dev.vars
+ExecStart=/opt/vix-voice/music-bot-venv/bin/python /opt/vix-voice/app/services/music-bot.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
