@@ -1,4 +1,4 @@
-import asyncio, json, os, sys
+import asyncio, json, os, signal, sys
 from aiohttp import web
 from livekit import api, rtc
 
@@ -62,5 +62,15 @@ async def stop(request):
     if current: current[2].terminate()
     return web.json_response({'ok': True})
 
-app = web.Application(); app.router.add_post('/play', play); app.router.add_post('/stop', stop)
+async def playback_control(request):
+    if not authorized(request): raise web.HTTPUnauthorized()
+    body = await request.json(); room_name = str(body.get('room', '')); current = sessions.get(room_name)
+    if not current: raise web.HTTPNotFound(text='O bot não está tocando nesta sala')
+    action = request.match_info['action']; process = current[2]
+    if action == 'pause': process.send_signal(signal.SIGSTOP)
+    elif action == 'resume': process.send_signal(signal.SIGCONT)
+    else: raise web.HTTPNotFound()
+    return web.json_response({'ok': True, 'action': action, 'room': room_name})
+
+app = web.Application(); app.router.add_post('/play', play); app.router.add_post('/stop', stop); app.router.add_post('/{action:pause|resume}', playback_control)
 web.run_app(app, host='127.0.0.1', port=int(os.environ.get('MUSIC_BOT_PORT', '8790')))

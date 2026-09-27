@@ -115,4 +115,9 @@ test('Vix Bot responde comandos e mantém uma fila musical por servidor', () => 
   assert.match(worker, /MUSIC_BOT_URL/);
   assert.match(worker, /server:\$\{serverId\}:voice:\$\{requesterVoice\.channel\}/);
   assert.match(worker, /Tocando na sua sala de voz/);
+  assert.match(worker, /command==='\/pausar'/);
+  assert.match(worker, /command==='\/continuar'/);
+  assert.match(worker, /command==='\/tocando'/);
+  assert.match(worker, /command==='\/membros'/);
+  assert.match(worker, /vixBotPlayback/);
 });
