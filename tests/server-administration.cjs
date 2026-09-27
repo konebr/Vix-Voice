@@ -65,6 +65,15 @@ test('painel moderno resume e localiza configurações administrativas', () => {
   assert.match(styles, /management-summary/);
 });
 
+test('painel permite chamar o Vix Bot para o servidor escolhido', () => {
+  assert.match(management, /data-tab="bots">Bots e integrações/);
+  assert.match(management, /Chamar para este servidor/);
+  assert.match(management, /\/bots\/vix/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS bot_installations/);
+  assert.match(worker, /Sem permissão para gerenciar bots/);
+  assert.match(worker, /runVixBotCommand[\s\S]*bot_installations/);
+});
+
 test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   const styles = fs.readFileSync('public/modern-shell.css', 'utf8');
   const html = fs.readFileSync('public/app/index.html', 'utf8');
