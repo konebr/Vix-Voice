@@ -86,7 +86,7 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=server-creator-1/);
+  assert.match(html, /app\.js\?v=feature-pack-1/);
   assert.match(app, /creatorReturnToPicker=!picker\.hidden/);
   assert.match(app, /picker\.hidden=true;creator\.hidden=false/);
 });

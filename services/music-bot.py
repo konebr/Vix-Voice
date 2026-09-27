@@ -1,9 +1,13 @@
-import asyncio, json, os, signal, sys
+import asyncio, json, os, random, signal, sys
 from aiohttp import web
 from livekit import api, rtc
 
 sessions = {}
 pending = {}
+waiting = {}
+repeating = set()
+volumes = {}
+current_queries = {}
 
 async def resolve_audio(query):
     target = query if query.startswith(('http://', 'https://')) else f'ytsearch1:{query}'
@@ -20,8 +24,10 @@ async def stream_track(room_name, query):
     source = rtc.AudioSource(48000, 2, queue_size_ms=1000)
     track = rtc.LocalAudioTrack.create_audio_track('vix-music', source)
     await room.local_participant.publish_track(track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE))
-    process = await asyncio.create_subprocess_exec('ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', source_url, '-vn', '-ac', '2', '-ar', '48000', '-f', 's16le', 'pipe:1', stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    volume = max(0, min(2, float(volumes.get(room_name, 1))))
+    process = await asyncio.create_subprocess_exec('ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', source_url, '-vn', '-filter:a', f'volume={volume}', '-ac', '2', '-ar', '48000', '-f', 's16le', 'pipe:1', stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     sessions[room_name] = (room, source, process)
+    current_queries[room_name] = query
     try:
         while chunk := await process.stdout.readexactly(3840):
             await source.capture_frame(rtc.AudioFrame(data=chunk, sample_rate=48000, num_channels=2, samples_per_channel=960))
@@ -30,7 +36,11 @@ async def stream_track(room_name, query):
             samples = len(end.partial) // 4
             if samples: await source.capture_frame(rtc.AudioFrame(data=end.partial[:samples*4], sample_rate=48000, num_channels=2, samples_per_channel=samples))
     finally:
-        await source.wait_for_playout(); await source.aclose(); await room.disconnect(); sessions.pop(room_name, None)
+        await source.wait_for_playout(); await source.aclose(); await room.disconnect(); sessions.pop(room_name, None); current_queries.pop(room_name, None)
+        queue = waiting.setdefault(room_name, [])
+        if room_name in repeating: queue.insert(0, query)
+        if queue:
+            next_query = queue.pop(0); pending[room_name] = asyncio.create_task(stream_track(room_name, next_query)); pending[room_name].add_done_callback(lambda _task, name=room_name: pending.pop(name, None))
 
 def authorized(request):
     return request.headers.get('authorization') == f"Bearer {os.environ.get('MUSIC_BOT_TOKEN', '')}"
@@ -39,7 +49,9 @@ async def play(request):
     if not authorized(request): raise web.HTTPUnauthorized()
     body = await request.json(); room = str(body.get('room', '')); query = str(body.get('query', '')).strip()
     if not room or not query: raise web.HTTPBadRequest(text='room e query são obrigatórios')
-    if room in sessions or room in pending: raise web.HTTPConflict(text='O bot já está tocando nesta sala')
+    if room in sessions or room in pending:
+        queue = waiting.setdefault(room, []); queue.append(query)
+        return web.json_response({'ok': True, 'room': room, 'queued': True, 'position': len(queue)})
     task = asyncio.create_task(stream_track(room, query)); pending[room] = task
     try:
         for _ in range(300):
@@ -59,18 +71,27 @@ async def play(request):
 async def stop(request):
     if not authorized(request): raise web.HTTPUnauthorized()
     body = await request.json(); current = sessions.get(str(body.get('room', '')))
+    waiting.pop(str(body.get('room', '')), None); repeating.discard(str(body.get('room', '')))
     if current: current[2].terminate()
     return web.json_response({'ok': True})
 
 async def playback_control(request):
     if not authorized(request): raise web.HTTPUnauthorized()
     body = await request.json(); room_name = str(body.get('room', '')); current = sessions.get(room_name)
+    action = request.match_info['action']
+    if action == 'status': return web.json_response({'ok': True, 'playing': bool(current), 'query': current_queries.get(room_name, ''), 'queue': waiting.get(room_name, []), 'repeat': room_name in repeating, 'volume': round(volumes.get(room_name, 1) * 100)})
     if not current: raise web.HTTPNotFound(text='O bot não está tocando nesta sala')
-    action = request.match_info['action']; process = current[2]
+    process = current[2]
     if action == 'pause': process.send_signal(signal.SIGSTOP)
     elif action == 'resume': process.send_signal(signal.SIGCONT)
+    elif action == 'skip': process.terminate()
+    elif action == 'repeat':
+        if bool(body.get('enabled', True)): repeating.add(room_name)
+        else: repeating.discard(room_name)
+    elif action == 'shuffle': random.shuffle(waiting.setdefault(room_name, []))
+    elif action == 'volume': volumes[room_name] = max(0, min(2, float(body.get('volume', 100)) / 100))
     else: raise web.HTTPNotFound()
     return web.json_response({'ok': True, 'action': action, 'room': room_name})
 
-app = web.Application(); app.router.add_post('/play', play); app.router.add_post('/stop', stop); app.router.add_post('/{action:pause|resume}', playback_control)
+app = web.Application(); app.router.add_post('/play', play); app.router.add_post('/stop', stop); app.router.add_post('/{action:pause|resume|skip|repeat|shuffle|volume|status}', playback_control)
 web.run_app(app, host='127.0.0.1', port=int(os.environ.get('MUSIC_BOT_PORT', '8790')))

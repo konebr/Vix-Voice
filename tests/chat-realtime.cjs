@@ -7,8 +7,20 @@ const root = path.join(__dirname, '..');
 const worker = fs.readFileSync(path.join(root, 'src', 'worker.js'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'public', 'chat-realtime.js'), 'utf8');
 const actions = fs.readFileSync(path.join(root, 'public', 'chat-actions.js'), 'utf8');
+const communityFeatures = fs.readFileSync(path.join(root, 'public', 'community-features.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'public', 'app', 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
+
+test('comandos, tópicos e não lidas possuem interface integrada', () => {
+  assert.match(communityFeatures, /slash-command-menu/);
+  assert.match(communityFeatures, /thread-panel/);
+  assert.match(communityFeatures, /message-thread-button/);
+  assert.match(communityFeatures, /server-unread/);
+  assert.match(worker, /command==='\/pular'/);
+  assert.match(worker, /command==='\/repetir'/);
+  assert.match(worker, /command==='\/embaralhar'/);
+  assert.match(worker, /command==='\/volume'/);
+});
 
 test('servidor oferece sincronização incremental autenticada', () => {
   assert.match(worker, /\/messages\$\/\),typing=.*\/typing\$\//s);
