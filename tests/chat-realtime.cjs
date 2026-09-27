@@ -39,6 +39,12 @@ test('menções e digitação estão ligadas à interface e às notificações',
   assert.match(client, /publishTyping\(false\)/);
 });
 
+test('o destaque da caixa aparece imediatamente antes de carregar os membros', () => {
+  assert.match(app, /function messageHasMentionToken\(value\)/);
+  assert.match(app, /row\.classList\.toggle\('has-mention',messageHasMentionToken\(item\.text\)\)/);
+  assert.match(app, /messageHasMentionToken\(text\)\|\|Boolean\(container\.querySelector\('\.message-mention'\)\)/);
+});
+
 test('ativos do chat são carregados e participam da atualização automática', () => {
   assert.match(html, /chat-realtime\.css\?v=mention-highlight-2/);
   assert.match(html, /chat-realtime\.js\?v=chat-2/);
