@@ -57,6 +57,7 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /menuitemcheckbox/);
   assert.match(app, /assigned:shouldAssign/);
   assert.match(fs.readFileSync('public/hud-refresh.css', 'utf8'), /member-role-option/);
+  assert.match(fs.readFileSync('public/hud-refresh.css', 'utf8'), /member-role-chip::before \{ display:none; content:none; \}/);
   assert.match(app, /navigator\.clipboard\.writeText\(value\)/);
   assert.match(app, /document\.execCommand\('copy'\)/);
   assert.match(app, /A cópia automática foi bloqueada/);
