@@ -5,10 +5,11 @@ const fs = require('node:fs');
 const app = fs.readFileSync('public/app.js', 'utf8');
 const management = fs.readFileSync('public/server-management.js', 'utf8');
 
-test('voice rooms reload when the selected server finishes loading', () => {
-  assert.match(app, /vix:server-loaded/);
-  assert.match(management, /addEventListener\('vix:server-loaded'/);
-  assert.match(management, /event\.detail\?\.serverId === state\.server\?\.id/);
+test('voice rooms start reloading immediately when server switching begins', () => {
+  assert.match(app, /vix:server-switching/);
+  assert.match(management, /addEventListener\('vix:server-switching'/);
+  assert.match(management, /event\.detail\?\.serverId !== state\.server\?\.id/);
+  assert.match(management, /voiceChannelCache/);
 });
 
 test('voice room loading tolerates malformed and transient responses', () => {

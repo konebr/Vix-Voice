@@ -32,4 +32,6 @@ test('server switching updates identity immediately and loads members in paralle
   assert.match(source, /serverMemberCache\.get\(serverId\)/);
   assert.match(source, /membersRequest=api\(`\/api\/servers\/\$\{serverId\}\/members`\)/);
   assert.match(source, /Promise\.allSettled\(\[serverRequest,membersRequest\]\)/);
+  assert.match(source, /serverViewCache/);
+  assert.match(source, /vix:server-switching/);
 });

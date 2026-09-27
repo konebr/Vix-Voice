@@ -330,3 +330,4 @@ body { background: var(--theme-bg) !important; }
 @keyframes member-context-in { from { opacity:0; transform:translateY(4px) scale(.98); } to { opacity:1; transform:none; } }
 @media(max-width:560px) { #member-context-menu { width:min(246px,calc(100vw - 16px)); } .member-context-submenu { right:0; left:auto; top:calc(100% + 4px); } }
 @media(prefers-reduced-motion:reduce) { #member-context-menu { animation:none; } }
+.server-switch-loading{height:100%;display:grid;place-content:center;justify-items:center;gap:12px;color:#9298aa;font-size:12px}.server-switch-loading span{width:28px;height:28px;border:3px solid #6d5df52b;border-top-color:#8b7cff;border-radius:50%;animation:server-switch-spin .65s linear infinite}.server-switch-loading strong{font-weight:700}@keyframes server-switch-spin{to{transform:rotate(360deg)}}
