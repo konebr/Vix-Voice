@@ -44,6 +44,7 @@ test('profiles persist and are shared with member surfaces', () => {
   assert.match(app, /Mencionar/);
   assert.match(app, /paintMessageMentions/);
   assert.match(app, /message-mention/);
+  assert.match(app, /classList\.toggle\('has-mention'/);
   assert.match(app, /showMemberProfileCard\(knownMembers\.get/);
   assert.match(app, /@everyone/);
   assert.match(app, /mention-autocomplete/);
