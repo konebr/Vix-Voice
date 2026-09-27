@@ -86,7 +86,9 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=server-picker-2/);
+  assert.match(html, /app\.js\?v=server-picker-3/);
+  assert.match(app, /creatorReturnToPicker=!picker\.hidden/);
+  assert.match(app, /picker\.hidden=true;creator\.hidden=false/);
 });
 
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
