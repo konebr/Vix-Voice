@@ -6,7 +6,7 @@ const vm = require('node:vm');
 test('room creator routes text and voice rooms to their own APIs', async () => {
   const source = fs.readFileSync('public/app.js', 'utf8');
   const pathLine = source.match(/function roomCreationPath\(type\)[^\n]+/)[0];
-  const createLine = source.match(/async function createRoom\(type,name\)[^\n]+/)[0];
+  const createLine = source.match(/async function createRoom\(type,name[^\n]+/)[0];
   const requests = [], calls = { server: 0, voice: 0 };
   const context = {
     state: { server: { id: 'server id' } }, encodeURIComponent, JSON,
@@ -19,11 +19,20 @@ test('room creator routes text and voice rooms to their own APIs', async () => {
 
   await context.createRoom('text', 'novidades');
   await context.createRoom('voice', 'Bate-papo');
+  await context.createRoom('category', 'Jogos');
 
   assert.deepEqual(requests.map(item => item.path), [
     '/api/servers/server%20id/channels',
-    '/api/servers/server%20id/voice-channels'
+    '/api/servers/server%20id/voice-channels',
+    '/api/servers/server%20id/categories'
   ]);
-  assert.deepEqual(requests.map(item => JSON.parse(item.options.body).name), ['novidades', 'Bate-papo']);
-  assert.deepEqual(calls, { server: 1, voice: 1 });
+  assert.deepEqual(requests.map(item => JSON.parse(item.options.body).name), ['novidades', 'Bate-papo', 'Jogos']);
+  assert.deepEqual(calls, { server: 2, voice: 2 });
+});
+
+test('category plus button opens the quick creator instead of server settings', () => {
+  const management = fs.readFileSync('public/server-management.js', 'utf8');
+  assert.match(management, /showChannelCreator\?\.\('text', category\.id\)/);
+  assert.doesNotMatch(management, /add\.onclick = event => \{ event\.stopPropagation\(\); openManagement\('voice'\)/);
+  assert.match(management, /channel-quick-actions/);
 });

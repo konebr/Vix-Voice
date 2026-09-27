@@ -201,6 +201,7 @@
     let activeUsers = $('voice-users');
     if (!activeUsers) { activeUsers = document.createElement('div'); activeUsers.id = 'voice-users'; activeUsers.className = 'voice-users'; }
     list.replaceChildren();
+    if (state.server?.capabilities?.manageChannels) { const quick = document.createElement('div'); quick.className = 'channel-quick-actions'; const room = button('＋ Sala'); room.onclick = () => window.showChannelCreator?.('text'); const category = button('＋ Categoria'); category.onclick = () => window.showChannelCreator?.('category'); quick.append(room, category); list.append(quick); }
     const categories = (voiceCategories.length ? voiceCategories : state.categories || []).sort((a, b) => a.position - b.position), categoryIds = new Set(categories.map(category => category.id)), storageKey = `vix-collapsed-categories-${state.server?.id || ''}`;
     let collapsedSaved = []; try { collapsedSaved = JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch {} const collapsed = new Set(Array.isArray(collapsedSaved) ? collapsedSaved : []);
     const renderGroup = (category, parent) => {
@@ -213,7 +214,7 @@
         const arrow = document.createElement('span'); arrow.className = 'category-collapse-arrow'; arrow.textContent = '›'; const label = document.createElement('strong'); label.textContent = category.name; const count = document.createElement('small'); count.className = 'category-room-count'; count.textContent = String(textRooms.length + voiceRooms.length); heading.append(arrow, label, count);
         const toggle = () => { const closing = !group.classList.contains('is-collapsed'); group.classList.toggle('is-collapsed', closing); heading.setAttribute('aria-expanded', String(!closing)); if (closing) collapsed.add(category.id); else collapsed.delete(category.id); localStorage.setItem(storageKey, JSON.stringify([...collapsed])); };
         heading.onclick = toggle; heading.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } };
-        if (state.server?.capabilities?.manageChannels) { const add = button('+', 'category-add-room'); add.title = `Adicionar canal em ${category.name}`; add.onclick = event => { event.stopPropagation(); openManagement('voice'); }; heading.append(add); }
+        if (state.server?.capabilities?.manageChannels) { const add = button('+', 'category-add-room'); add.title = `Criar sala em ${category.name}`; add.onclick = event => { event.stopPropagation(); window.showChannelCreator?.('text', category.id); }; heading.append(add); }
         roomParent = document.createElement('div'); roomParent.className = 'category-channel-rooms'; group.append(heading, roomParent); parent.append(group);
       }
       for (const channel of textRooms) {

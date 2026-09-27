@@ -498,7 +498,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .room-creator-card { width: min(480px, 100%); text-align: left; }
 .room-modal-kicker { color: #858fff; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
 .room-creator-card h1 { margin-top: 8px; }
-.room-type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+.room-type-picker { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 20px 0; }
 .room-type-picker label { margin: 0; cursor: pointer; }
 .room-type-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .room-type-picker label>span {
@@ -519,6 +519,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .room-name-field:focus-within { border-color: #747cff; box-shadow: 0 0 0 3px #6c72ff1c; }
 .room-name-field>span { width: 42px; color: #7f889b; text-align: center; font-size: 18px; }
 .room-name-field input { margin: 0; border: 0; background: transparent; }
+#room-category-wrap { display:grid; gap:7px; margin-top:14px; }
+#room-category-wrap[hidden] { display:none; }
+#new-channel-category { width:100%; height:42px; padding:0 11px; border:1px solid #303748; border-radius:8px; outline:0; background:#10131a; color:#e8ebf2; }
+#new-channel-category:focus { border-color:#747cff; box-shadow:0 0 0 3px #6c72ff1c; }
+@media(max-width:520px){.room-type-picker{grid-template-columns:1fr}.room-type-picker label>span{min-height:58px}}
 .room-cancel { margin-top: 9px !important; background: transparent !important; color: #9da4b2 !important; }
 .room-cancel:hover { background: #272c37 !important; color: white !important; }
 
