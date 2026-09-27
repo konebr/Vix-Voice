@@ -9,11 +9,7 @@
   let activeTyping = [];
 
   const messageVersion = message => Math.max(Number(message.created) || 0, Number(message.edited) || 0);
-  const isMention = (text, name) => {
-    const value = String(text || '').toLocaleLowerCase('pt-BR');
-    const displayName = String(name || '').trim().toLocaleLowerCase('pt-BR');
-    return value.includes('@todos') || value.includes('@everyone') || Boolean(displayName && value.includes(`@${displayName}`));
-  };
+  const isMention = (text, name) => messageMentionsViewer(text, name);
   const mergeMessages = (current, incoming, deleted = []) => {
     const byId = new Map(current.map(message => [message.id, message]));
     const added = [];

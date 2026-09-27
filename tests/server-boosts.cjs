@@ -33,5 +33,5 @@ test('impulsos beta persistem por conta e exibem níveis do servidor', () => {
   assert.match(hud, /\.server-supporter-badge/);
   assert.match(hud, /supporter-shimmer/);
   assert.match(html, /modern-shell\.css\?v=boosts-2/);
-  assert.match(html, /app\.js\?v=mention-instant-1/);
+  assert.match(html, /app\.js\?v=mention-viewer-1/);
 });
