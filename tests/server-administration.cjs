@@ -77,7 +77,7 @@ test('janelas da comunidade usam cartões modernos e acessíveis', () => {
   assert.match(styles, /Janelas da comunidade/);
   assert.match(styles, /\.community-card\{/);
   assert.match(styles, /\.community-list-button:hover/);
-  assert.match(html, /app\.js\?v=creator-modern-1/);
+  assert.match(html, /app\.js\?v=channel-identity-1/);
 });
 
 test('servidores aceitam foto personalizada e convite rápido compartilhável', () => {
@@ -137,4 +137,12 @@ test('categorias organizam livremente salas de texto e voz', () => {
   assert.match(styles, /Categorias com leitura e toque confortáveis/);
   assert.match(styles, /Lista de membros com cartões amplos/);
   assert.match(styles, /\.community-card \.community-list-button\{display:block;width:100%;min-height:0;height:auto/);
+});
+
+test('salas de texto com o mesmo nome permanecem separadas por categoria', () => {
+  assert.match(worker, /display_name TEXT DEFAULT/);
+  assert.match(worker, /COALESCE\(category_id,""\)=\? AND lower\(COALESCE\(NULLIF\(display_name,""\),name\)\)=lower\(\?\)/);
+  assert.match(worker, /while\(one\(this\.c\.storage\.sql\.exec\('SELECT name FROM channels WHERE server_id=\? AND name=\?'/);
+  assert.match(worker, /INSERT INTO channels\(server_id,name,category_id,position,topic,display_name\)/);
+  assert.match(app, /channel\.display_name\|\|channel\.name/);
 });

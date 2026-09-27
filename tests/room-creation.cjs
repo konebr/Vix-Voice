@@ -36,3 +36,12 @@ test('category plus button opens the quick creator instead of server settings', 
   assert.doesNotMatch(management, /add\.onclick = event => \{ event\.stopPropagation\(\); openManagement\('voice'\)/);
   assert.match(management, /channel-quick-actions/);
 });
+
+test('quick creator uses vector icons and a neutral input focus', () => {
+  const icons = fs.readFileSync('public/icons.js', 'utf8');
+  const css = fs.readFileSync('public/hud.css', 'utf8');
+  assert.match(icons, /room-creator-symbol/);
+  assert.match(icons, /input\[value="category"\]/);
+  assert.match(css, /room-name-field:focus-within\{border-color:#56647c/);
+  assert.match(css, /input:focus-visible\{border:0!important;outline:none!important/);
+});
