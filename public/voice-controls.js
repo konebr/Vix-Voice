@@ -6,13 +6,15 @@
     const level = Math.max(0, Math.min(100, (Number(event.detail?.levelDb) + 60) / 60 * 100));
     meter.style.width = `${level}%`; status.textContent = event.detail?.open ? 'Voz detectada' : 'Ruído bloqueado'; status.classList.toggle('is-open', Boolean(event.detail?.open));
   });
-  const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
+  const clamp = (value, maximum = 100) => Math.max(0, Math.min(maximum, Number(value) || 0));
   const shouldPlayRemoteAudio = (settings, muted, speaking) => !muted && (settings.voiceActivatedOutput === false || speaking);
   const isRemoteSpeaking = (contextState, rms, until, now) => contextState !== 'running' || rms > 0.012 || now < until;
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const settings = readSettings(), prefs = preferences(peer.person.id), blocked = deafened || !!prefs.muted;
-    peer.audio.volume = clamp(settings.outputVolume ?? 100) * clamp(prefs.volume ?? 100) / 10000;
+    const outputPercent = clamp(settings.outputVolume ?? 100, 200) * clamp(prefs.volume ?? 100) / 100;
+    if (globalThis.vixSetOutputVolume) globalThis.vixSetOutputVolume(peer.audio, outputPercent);
+    else peer.audio.volume = Math.min(1, outputPercent / 100);
     peer.audio.muted = !shouldPlayRemoteAudio(settings, blocked, peer.remoteSpeaking === true);
   }
   async function routeOutput(peer) {
@@ -189,10 +191,13 @@
     $('settings-output').onchange = async event => {
       const previous = readSettings().output || '';
       saveSettings({ output: event.target.value });
-      try { await Promise.all([...voicePeers.values()].map(routeOutput)); }
+      try { await globalThis.vixSetBoostOutputDevice?.(event.target.value); await Promise.all([...voicePeers.values()].map(routeOutput)); }
       catch (error) { saveSettings({ output: previous }); event.target.value = previous; await Promise.allSettled([...voicePeers.values()].map(routeOutput)); alert(`Não foi possível mudar a saída: ${error.message}`); }
     };
-    $('settings-output-volume').oninput = event => { saveSettings({ outputVolume: clamp(event.target.value) }); for (const peer of voicePeers.values()) applyOutput(peer); };
-    $('settings-output-volume').onchange = $('settings-output-volume').oninput;
+    const outputSlider = $('settings-output-volume'), outputValue = $('settings-output-volume-value');
+    const paintOutputVolume = value => { const volume = clamp(value, 200); outputValue.textContent = `${volume}%`; outputValue.classList.toggle('is-boosted', volume > 100); return volume; };
+    paintOutputVolume(outputSlider.value);
+    outputSlider.oninput = event => { const volume = paintOutputVolume(event.target.value); saveSettings({ outputVolume: volume }); for (const peer of voicePeers.values()) applyOutput(peer); };
+    outputSlider.onchange = outputSlider.oninput;
   };
 })();

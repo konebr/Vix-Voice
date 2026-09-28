@@ -18,6 +18,18 @@ test('master volume combines with personal volume; deafen and personal mute rema
   settings = {}; peer.remoteSpeaking = true; context.applyOutput(peer); assert.equal(peer.audio.volume, 1); assert.equal(peer.audio.muted, false);
 });
 
+test('headphone output accepts 200 percent and uses the local gain stage', () => {
+  const controls = fs.readFileSync('public/voice-controls.js', 'utf8');
+  const app = fs.readFileSync('public/app.js', 'utf8');
+  const boost = fs.readFileSync('public/output-boost.js', 'utf8');
+  const html = fs.readFileSync('public/app/index.html', 'utf8');
+  assert.match(app, /settings-output-volume[^>]+max="200"/);
+  assert.match(controls, /clamp\(settings\.outputVolume \?\? 100, 200\)/);
+  assert.match(controls, /vixSetOutputVolume/);
+  assert.match(boost, /createMediaElementSource/);
+  assert.ok(html.indexOf('output-boost.js') < html.indexOf('voice-controls.js'));
+});
+
 test('voice activation mutes silence independently without pausing participant tracks', () => {
   const source = fs.readFileSync('public/voice-controls.js', 'utf8');
   const start = source.indexOf('  const clamp');

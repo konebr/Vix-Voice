@@ -1015,6 +1015,8 @@ Servers.prototype.fetch=async function(request){
   this.ensureServerBoosts();
   const data=await response.json(),supporters=new Set([...this.c.storage.sql.exec('SELECT user_id FROM server_boosts WHERE server_id=?',match[1])].map(item=>item.user_id));
   data.members=(data.members||[]).map(member=>({...member,is_booster:supporters.has(member.user_id)}));
+  const botInstalled=!!one(this.c.storage.sql.exec('SELECT bot_id FROM bot_installations WHERE server_id=? AND bot_id="vix"',match[1]));
+  if(botInstalled)data.members.push({user_id:'vix-bot',name:'Vix Bot',color:'#7c69ff',avatar:'',role:'Bots',role_id:'vix-bots',role_color:'#9b8cff',role_position:50,online:1,last_seen:Date.now(),presence_status:'online',is_bot:true,custom_status:'Pronto para ajudar · /ajuda'});
   return j(data);
 };
 

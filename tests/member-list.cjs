@@ -35,3 +35,12 @@ test('server switching updates identity immediately and loads members in paralle
   assert.match(source, /serverViewCache/);
   assert.match(source, /vix:server-switching/);
 });
+
+test('installed Vix Bot is exposed in the server member list', () => {
+  const client = fs.readFileSync('public/app.js', 'utf8');
+  const worker = fs.readFileSync('src/worker.js', 'utf8');
+  assert.match(worker, /botInstalled.*bot_installations/);
+  assert.match(worker, /user_id:'vix-bot'.*is_bot:true/);
+  assert.match(client, /member\.is_bot/);
+  assert.match(client, /botBadge\.textContent='BOT'/);
+});
