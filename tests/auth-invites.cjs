@@ -31,6 +31,13 @@ test('login, cadastro e menu de membros usam a interface moderna', () => {
   assert.match(app, /window\.vixIcon\?\.\(icon,15\)/);
 });
 
+test('login esconde o nome e não exibe código de servidor em nenhum modo', () => {
+  assert.doesNotMatch(html, /id="room"|CÓDIGO DO SERVIDOR/);
+  assert.match(css, /\.auth-field\[hidden\].*display:none!important/);
+  assert.match(app, /document\.querySelector\('label\[for="name"\]'\)\.hidden=login/);
+  assert.doesNotMatch(app, /const room=\$\('room'\)/);
+});
+
 test('selo GM global é sincronizado e visível para os demais membros', () => {
   assert.match(worker, /member_profiles','is_gm INTEGER DEFAULT 0/);
   assert.match(worker, /UPDATE member_profiles SET is_gm=/);

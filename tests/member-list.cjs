@@ -56,3 +56,9 @@ test('member context menu exposes complete permission-aware moderation', () => {
   assert.match(client, /Number\(member\.role_position\)!==0/);
   assert.match(css, /Submenus de moderação/);
 });
+
+test('member context menu closes when the pointer leaves the whole panel', () => {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  assert.match(source, /memberContextMenu\.addEventListener\('pointerleave',\(\)=>closeMemberContextMenu\(\)\)/);
+  assert.doesNotMatch(source, /requestAnimationFrame\(\(\)=>memberContextMenu\.querySelector/);
+});
