@@ -341,3 +341,6 @@ html,body,.app,.join-modal,.management-modal,.server-invite-modal,.user-settings
 .channel-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 2px 11px;padding-bottom:10px;border-bottom:1px solid var(--hud-edge,#2c3342)}
 .channel-quick-actions button{min-width:0;height:30px;border:1px solid color-mix(in srgb,var(--theme-accent) 30%,#303849);border-radius:8px;background:color-mix(in srgb,var(--theme-accent) 9%,#151a23);color:#aeb6c7;font-size:9px;font-weight:750;cursor:pointer;transition:.16s}
 .channel-quick-actions button:hover{border-color:color-mix(in srgb,var(--theme-accent) 62%,#303849);background:color-mix(in srgb,var(--theme-accent) 17%,#171c25);color:#fff;transform:translateY(-1px)}
+
+/* Submenus de moderação com mais opções e leitura clara. */
+#member-context-menu .member-context-submenu{width:238px}#member-context-menu .member-context-item.is-danger:hover{background:#4a262d;color:#ffd5d8}#member-context-menu .member-context-item.is-danger>.member-context-icon{background:#4b2930;color:#ff9ca5}

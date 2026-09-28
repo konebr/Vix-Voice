@@ -44,3 +44,15 @@ test('installed Vix Bot is exposed in the server member list', () => {
   assert.match(client, /member\.is_bot/);
   assert.match(client, /botBadge\.textContent='BOT'/);
 });
+
+test('member context menu exposes complete permission-aware moderation', () => {
+  const client = fs.readFileSync('public/app.js', 'utf8');
+  const css = fs.readFileSync('public/hud-refresh.css', 'utf8');
+  for (const text of ['Silenciar áudio','Suspender temporariamente','Remover restrições','Expulsar do servidor','Banir do servidor','Escolher duração…']) assert.ok(client.includes(text));
+  assert.match(client, /duration_minutes:minutes/);
+  assert.match(client, /capabilities\.moderateMembers/);
+  assert.match(client, /capabilities\.kickMembers/);
+  assert.match(client, /capabilities\.banMembers/);
+  assert.match(client, /Number\(member\.role_position\)!==0/);
+  assert.match(css, /Submenus de moderação/);
+});
