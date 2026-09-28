@@ -157,3 +157,17 @@ test('salas de texto com o mesmo nome permanecem separadas por categoria', () =>
   assert.match(worker, /INSERT INTO channels\(server_id,name,category_id,position,topic,display_name\)/);
   assert.match(app, /channel\.display_name\|\|channel\.name/);
 });
+
+test('criação de cargos e controles ligados usam a interface moderna', () => {
+  const management = fs.readFileSync('public/server-management.js', 'utf8');
+  const managementCss = fs.readFileSync('public/server-management.css', 'utf8');
+  const shellCss = fs.readFileSync('public/modern-shell.css', 'utf8');
+  assert.match(management, /permissionDetails/);
+  assert.match(management, /rolePresets/);
+  assert.match(management, /MODELO DE PERMISSÕES/);
+  assert.match(management, /permission-groups/);
+  assert.match(managementCss, /create-role-card/);
+  assert.match(managementCss, /permission-item:has\(input:checked\)/);
+  assert.match(shellCss, /Um único padrão de interruptor/);
+  assert.match(shellCss, /input\[type=checkbox\]:checked/);
+});
