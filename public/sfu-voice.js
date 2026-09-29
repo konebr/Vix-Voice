@@ -53,7 +53,7 @@
 
   function setAudioPreferences(id, audio) {
     const settings = readSettings(), prefs = participantPreferences(id);
-    const outputPercent = Math.max(0, Math.min(200, Number(settings.outputVolume ?? 100))) * Math.max(0, Math.min(100, Number(prefs.volume ?? 100))) / 100;
+    const outputPercent = Math.max(0, Math.min(200, Number(settings.outputVolume ?? 130))) * Math.max(0, Math.min(200, Number(prefs.volume ?? 100))) / 100;
     if (globalThis.vixSetOutputVolume) globalThis.vixSetOutputVolume(audio, outputPercent);
     else audio.volume = Math.min(1, outputPercent / 100);
     audio.muted = deafened || Boolean(prefs.muted);
@@ -142,7 +142,7 @@
     audio.hidden = true;
     audio.dataset.sfuParticipant = participantId(participant);
     if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) {
-      globalThis.vixSetOutputVolume?.(audio, readSettings().outputVolume ?? 100);
+      globalThis.vixSetOutputVolume?.(audio, readSettings().outputVolume ?? 130);
       audio.muted = deafened;
     } else setAudioPreferences(participantId(participant), audio);
     document.body.append(audio);
@@ -344,7 +344,7 @@
         syncPublishedMedia().catch(error => console.warn('Falha ao atualizar microfone no SFU', error));
         for (const item of remoteAudio.values()) {
           if (item.screen) {
-            globalThis.vixSetOutputVolume?.(item.audio, readSettings().outputVolume ?? 100);
+            globalThis.vixSetOutputVolume?.(item.audio, readSettings().outputVolume ?? 130);
             item.audio.muted = deafened;
           } else setAudioPreferences(participantId(item.participant), item.audio);
         }

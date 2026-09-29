@@ -24,9 +24,12 @@ test('headphone output accepts 200 percent and uses the local gain stage', () =>
   const boost = fs.readFileSync('public/output-boost.js', 'utf8');
   const html = fs.readFileSync('public/app/index.html', 'utf8');
   assert.match(app, /settings-output-volume[^>]+max="200"/);
-  assert.match(controls, /clamp\(settings\.outputVolume \?\? 100, 200\)/);
+  assert.match(controls, /clamp\(settings\.outputVolume \?\? 130, 200\)/);
   assert.match(controls, /vixSetOutputVolume/);
   assert.match(boost, /createMediaElementSource/);
+  assert.match(boost, /createDynamicsCompressor/);
+  assert.match(controls, /slider\.max = 200/);
+  assert.match(app, /outputBoostV2/);
   assert.ok(html.indexOf('output-boost.js') < html.indexOf('voice-controls.js'));
 });
 

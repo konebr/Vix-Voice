@@ -7,8 +7,9 @@
     let node = nodes.get(audio); if (node) return node;
     const Context = globalThis.AudioContext || globalThis.webkitAudioContext; if (!Context) return null;
     context ||= new Context({ latencyHint: 'interactive' });
-    const source = context.createMediaElementSource(audio), gain = context.createGain();
-    source.connect(gain); gain.connect(context.destination); node = { gain }; nodes.set(audio, node); return node;
+    const source = context.createMediaElementSource(audio), gain = context.createGain(), limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -5; limiter.knee.value = 8; limiter.ratio.value = 8; limiter.attack.value = .003; limiter.release.value = .12;
+    source.connect(gain); gain.connect(limiter); limiter.connect(context.destination); node = { gain, limiter }; nodes.set(audio, node); return node;
   }
   globalThis.vixSetOutputVolume = (audio, percent) => {
     if (!audio) return;

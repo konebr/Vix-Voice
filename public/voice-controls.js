@@ -12,7 +12,7 @@
   function preferences(id) { return readSettings().participants?.[id] || {}; }
   function applyOutput(peer) {
     const settings = readSettings(), prefs = preferences(peer.person.id), blocked = deafened || !!prefs.muted;
-    const outputPercent = clamp(settings.outputVolume ?? 100, 200) * clamp(prefs.volume ?? 100) / 100;
+    const outputPercent = clamp(settings.outputVolume ?? 130, 200) * clamp(prefs.volume ?? 100, 200) / 100;
     if (globalThis.vixSetOutputVolume) globalThis.vixSetOutputVolume(peer.audio, outputPercent);
     else peer.audio.volume = Math.min(1, outputPercent / 100);
     peer.audio.muted = !shouldPlayRemoteAudio(settings, blocked, peer.remoteSpeaking === true);
@@ -39,11 +39,11 @@
       const control = document.createElement('details');
       control.className = 'person-volume';
       const summary = document.createElement('summary'); summary.textContent = 'Volume';
-      const slider = document.createElement('input'); slider.type = 'range'; slider.min = 0; slider.max = 100;
+      const slider = document.createElement('input'); slider.type = 'range'; slider.min = 0; slider.max = 200;
       slider.value = preferences(id).volume ?? 100;
       slider.setAttribute('aria-label', `Volume de ${row.textContent}`);
       const value = document.createElement('span'); value.textContent = `${slider.value}%`;
-      slider.oninput = () => { saveParticipant(id, { volume: clamp(slider.value) }); value.textContent = `${slider.value}%`; };
+      slider.oninput = () => { saveParticipant(id, { volume: clamp(slider.value, 200) }); value.textContent = `${slider.value}%`; };
       const mute = document.createElement('button'); mute.type = 'button';
       const label = () => { mute.textContent = preferences(id).muted ? 'Ouvir usuário' : 'Silenciar usuário'; };
       label(); mute.onclick = () => { saveParticipant(id, { muted: !preferences(id).muted }); label(); };
