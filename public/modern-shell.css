@@ -65,6 +65,9 @@ body{background:color-mix(in srgb,var(--theme-bg) 88%,#000)!important;letter-spa
 /* Fotos ocupam integralmente seus respectivos quadros */
 .avatar,.member-card-avatar,.private-avatar,.profile-editor-avatar,.inline-avatar-preview,.management-avatar,.management-server>span.has-image,.server-photo-preview.has-image,.server-invite-logo.has-image{padding:0!important;overflow:hidden;background-position:center!important;background-size:cover!important;background-repeat:no-repeat!important;background-origin:border-box!important}
 .server>img,.picker-server-icon img{display:block;width:100%!important;height:100%!important;max-width:none;object-fit:cover!important;object-position:center}
+.server:has(>img){padding:0!important;overflow:hidden;border:0!important;background:transparent!important}
+.server:has(>img).active{box-shadow:0 10px 24px #0004!important}
+.server:has(>img):focus,.server:has(>img):focus-visible{outline:0!important;box-shadow:0 10px 24px #0004!important}
 
 /* Seletor de servidores 2026 */
 .server-picker-modal{z-index:125;background:radial-gradient(circle at 50% 20%,rgba(105,91,255,.16),transparent 36%),rgba(3,6,14,.82);backdrop-filter:blur(18px) saturate(125%)}

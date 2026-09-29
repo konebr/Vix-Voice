@@ -1,4 +1,4 @@
-import asyncio, json, os, random, signal, sys
+import asyncio, importlib.util, json, os, random, shutil, signal, sys
 from aiohttp import web
 from livekit import api, rtc
 
@@ -93,5 +93,14 @@ async def playback_control(request):
     else: raise web.HTTPNotFound()
     return web.json_response({'ok': True, 'action': action, 'room': room_name})
 
-app = web.Application(); app.router.add_post('/play', play); app.router.add_post('/stop', stop); app.router.add_post('/{action:pause|resume|skip|repeat|shuffle|volume|status}', playback_control)
+async def health(_request):
+    checks = {
+        'ffmpeg': bool(shutil.which('ffmpeg')),
+        'yt_dlp': importlib.util.find_spec('yt_dlp') is not None,
+        'livekit': bool(os.environ.get('LIVEKIT_API_KEY') and os.environ.get('LIVEKIT_API_SECRET') and os.environ.get('LIVEKIT_URL')),
+        'token': bool(os.environ.get('MUSIC_BOT_TOKEN')),
+    }
+    return web.json_response({'ok': all(checks.values()), 'checks': checks}, status=200 if all(checks.values()) else 503)
+
+app = web.Application(); app.router.add_get('/health', health); app.router.add_post('/play', play); app.router.add_post('/stop', stop); app.router.add_post('/{action:pause|resume|skip|repeat|shuffle|volume|status}', playback_control)
 web.run_app(app, host='127.0.0.1', port=int(os.environ.get('MUSIC_BOT_PORT', '8790')))

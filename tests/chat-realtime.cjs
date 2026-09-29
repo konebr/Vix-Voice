@@ -125,6 +125,9 @@ test('Vix Bot responde comandos e mantém uma fila musical por servidor', () => 
   assert.match(worker, /INSERT OR REPLACE INTO voice_presence VALUES/);
   assert.match(worker, /user_id="vix-bot"/);
   assert.match(worker, /MUSIC_BOT_URL/);
+  const executor = fs.readFileSync('services/music-bot.py', 'utf8');
+  assert.match(executor, /add_get\('\/health', health\)/);
+  assert.match(executor, /importlib\.util\.find_spec\('yt_dlp'\)/);
   assert.match(worker, /server:\$\{serverId\}:voice:\$\{requesterVoice\.channel\}/);
   assert.match(worker, /Tocando na sua sala de voz/);
   assert.match(worker, /command==='\/pausar'/);
