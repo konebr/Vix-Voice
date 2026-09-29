@@ -14,6 +14,8 @@ test('backend issues short lived, room scoped SFU tokens', () => {
   assert.match(worker, /canPublish:true,canSubscribe:true/);
   assert.match(worker, /exp:now\+7200/);
   assert.match(worker, /LIVEKIT_API_SECRET/);
+  assert.doesNotMatch(worker, /Object\.hasOwn\(/);
+  assert.match(worker, /Object\.prototype\.hasOwnProperty\.call/);
 });
 
 test('each browser or desktop connection receives a unique SFU identity', () => {
