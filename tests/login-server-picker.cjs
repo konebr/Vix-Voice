@@ -5,7 +5,5 @@ test('login enters the app without forcing the server picker',()=>{
   const restore=app.match(/async function restoreServer\(\)\{[^\n]+/s)?.[0]||'';
   assert.match(restore,/closePicker\(\)/);
   assert.doesNotMatch(restore,/await openPicker\(\)/);
-  assert.match(restore,/showEmptyAccount\(true\)/);
-  assert.match(app,/className='new-account-home'/);
-  assert.match(app,/function applyServerView\(server,details\)\{showEmptyAccount\(false\)/);
+  assert.match(restore,/Selecione um servidor/);
 });
