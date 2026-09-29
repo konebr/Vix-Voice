@@ -33,6 +33,8 @@ test('aprovação de entrada mantém solicitações fora da lista de membros', (
 
 test('antispam e transferência de propriedade possuem validações no servidor', () => {
   assert.match(worker, /message_rate_limits/);
+  assert.match(worker, /botCommand=\/\^\\\/\(\?:ajuda/);
+  assert.match(worker, /cooldown=botCommand\?10000:15000/);
   assert.match(worker, /blockedHosts=new Set/);
   assert.match(worker, /confirmation!==server\.name/);
   assert.match(worker, /transactionSync/);

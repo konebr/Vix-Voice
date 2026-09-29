@@ -769,6 +769,7 @@ Servers.prototype.ensureCommunitySuite=function(serverId){
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS event_responses(event_id TEXT,user_id TEXT,response TEXT,updated INTEGER,PRIMARY KEY(event_id,user_id))');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS community_settings(server_id TEXT PRIMARY KEY,welcome_enabled INTEGER,welcome_channel TEXT,welcome_message TEXT,auto_role_id TEXT,rules_required INTEGER,announcement_channel TEXT,slowmode_seconds INTEGER,updated INTEGER)');
   this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS rules_acceptances(server_id TEXT,user_id TEXT,accepted INTEGER,PRIMARY KEY(server_id,user_id))');
+  this.c.storage.sql.exec('CREATE TABLE IF NOT EXISTS community_message_times(server_id TEXT,user_id TEXT,last_message INTEGER,PRIMARY KEY(server_id,user_id))');
   this.c.storage.sql.exec('INSERT OR IGNORE INTO community_settings VALUES(?,0,"boas-vindas","Boas-vindas, {usuario}! Leia as regras e aproveite o servidor.","",0,"",0,?)',serverId,Date.now());
 };
 Servers.prototype.communitySettings=function(serverId){return one(this.c.storage.sql.exec('SELECT * FROM community_settings WHERE server_id=?',serverId))};
@@ -850,9 +851,10 @@ Servers.prototype.messageSafety=function(serverId,user,text){
   if(links.length>4)return 'A mensagem contém links demais.';
   for(const link of links)try{if(blockedHosts.has(new URL(link).hostname.toLowerCase()))return 'Encurtadores de link não são permitidos neste servidor.'}catch{return 'O endereço enviado é inválido.'}
   const saved=one(this.c.storage.sql.exec('SELECT * FROM message_rate_limits WHERE server_id=? AND user_id=?',serverId,user.id));if(Number(saved?.blocked_until||0)>now)return `Aguarde ${Math.ceil((Number(saved.blocked_until)-now)/1000)} segundos antes de enviar outra mensagem.`;
-  const sameWindow=saved&&now-Number(saved.window_started||0)<8000,count=sameWindow?Number(saved.message_count||0)+1:1,started=sameWindow?saved.window_started:now,duplicate=normalized&&normalized===saved?.last_text?Number(saved.duplicate_count||0)+1:1,blocked=count>6||duplicate>3?now+60000:0;
+  const botCommand=/^\/(?:ajuda|help|comandos|ping|servidor|membros|salas|hora|clear|limpar|musica|música|play|fila|queue|tocando|nowplaying|np|pausar|pause|continuar|resume|pular|skip|repetir|repeat|embaralhar|shuffle|volume|parar|stop)\b/i.test(clean);
+  const sameWindow=saved&&now-Number(saved.window_started||0)<8000,count=sameWindow?Number(saved.message_count||0)+1:1,started=sameWindow?saved.window_started:now,duplicate=normalized&&normalized===saved?.last_text?Number(saved.duplicate_count||0)+1:1,cooldown=botCommand?10000:15000,blocked=count>(botCommand?12:8)||duplicate>(botCommand?6:4)?now+cooldown:0;
   this.c.storage.sql.exec('INSERT OR REPLACE INTO message_rate_limits VALUES(?,?,?,?,?,?,?)',serverId,user.id,started,count,normalized.slice(0,240),duplicate,blocked);
-  if(blocked){this.audit(serverId,user,'SPAM_BLOCK',user.id,user.name,count>6?'Muitas mensagens em poucos segundos':'Mensagem repetida');return 'Proteção contra spam ativada. Aguarde 1 minuto.'}return null;
+  if(blocked){this.audit(serverId,user,'SPAM_BLOCK',user.id,user.name,count>(botCommand?12:8)?'Muitas mensagens em poucos segundos':'Mensagem repetida');return `Proteção contra spam ativada. Aguarde ${cooldown/1000} segundos.`}return null;
 };
 Servers.prototype.fetch=async function(request){
   const url=new URL(request.url);
