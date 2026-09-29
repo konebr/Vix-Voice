@@ -8,8 +8,3 @@ TURN_SECRET=""
 LIVEKIT_API_KEY=""
 LIVEKIT_API_SECRET=""
 LIVEKIT_URL="wss://app.vix-voice.com.br"
-
-# Confirmação de conta, novos dispositivos e recuperação de senha.
-# Crie a chave em https://resend.com e use um remetente de domínio verificado.
-RESEND_API_KEY=""
-EMAIL_FROM="Vix Voice <conta@vix-voice.com.br>"
