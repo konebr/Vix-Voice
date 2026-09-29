@@ -8,7 +8,7 @@
 
   const viewer = document.createElement('section');
   viewer.id = 'professional-stream-viewer'; viewer.hidden = true;
-  viewer.innerHTML = '<div class="stream-viewer-shell"><header><div><span class="stream-live-dot"></span><div><strong></strong><small>TRANSMISSÃO AO VIVO</small></div></div><nav><button data-action="popout" type="button">Janela destacada</button><button data-action="fullscreen" type="button">Tela cheia</button><button data-action="close" type="button" aria-label="Fechar">×</button></nav></header><main><video autoplay playsinline></video><p role="status"></p></main><footer><label><span>Volume da transmissão</span><input type="range" min="0" max="100" value="100"><output>100%</output></label></footer></div>';
+  viewer.innerHTML = '<div class="stream-viewer-shell"><header><div><span class="stream-live-dot"></span><div><strong></strong><small>TRANSMISSÃO AO VIVO</small></div></div><nav><button data-action="popout" type="button">Janela destacada</button><button data-action="fullscreen" type="button">Tela cheia</button><button data-action="close" type="button" aria-label="Fechar">×</button></nav></header><main><video autoplay playsinline></video><p role="status"></p></main><footer><label><span>Volume da transmissão</span><input type="range" min="0" max="200" value="100"><output>100%</output></label></footer></div>';
   const chat = document.querySelector('.chat');
   (chat || document.body).append(viewer);
   const shell = viewer.querySelector('.stream-viewer-shell'), main = viewer.querySelector('main'), placeholderVideo = viewer.querySelector('video'), status = viewer.querySelector('[role="status"]'), volume = viewer.querySelector('input'), output = viewer.querySelector('output');
@@ -18,7 +18,7 @@
   function closeViewer() { if (selected) { dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id: selected, active: false } })); setStreamAudio(streams.get(selected), false); } selected = null; releaseVideo(); placeholderVideo.pause(); placeholderVideo.srcObject = null; viewer.hidden = true; }
   function streamMedia(item) { const source = item?.video?.srcObject || item?.stream || null, track = source?.getVideoTracks?.().find(value => value.readyState === 'live'); if (!track) return null; if (item.playbackTrack !== track) { item.playbackTrack = track; item.playbackStream = new MediaStream([track]); } return item.playbackStream; }
   function setStreamAudio(item, active) { if (!item?.audio) return; const audible = active && !deafened; item.audio.muted = !audible; if (audible) item.audio.play().catch(() => {}); else item.audio.pause(); }
-  function applyVolume(item, value) { const amount = Number(value) / 100; if (item?.audio) item.audio.volume = amount; video.volume = amount; output.value = `${value}%`; }
+  function applyVolume(item, value) { const amount = Math.max(0, Math.min(200, Number(value))); if (item?.audio) globalThis.vixSetOutputVolume?.(item.audio, amount); video.volume = Math.min(1, amount / 100); output.value = `${amount}%`; }
   function mountVideo(item) { const element = item?.video; if (!element) return false; if (activeVideo !== element) { releaseVideo(); activeVideo = element; activeVideoStyle = element.style.cssText; element.style.cssText = ''; element.hidden = false; element.classList.add('active-stream-video'); main.prepend(element); } video = element; video.muted = Boolean(item.local); return true; }
   function watch(id) {
     const item = streams.get(id); if (!item) return closeViewer(); selected = id; viewer.hidden = false;

@@ -33,6 +33,13 @@ test('headphone output accepts 200 percent and uses the local gain stage', () =>
   assert.ok(html.indexOf('output-boost.js') < html.indexOf('voice-controls.js'));
 });
 
+test('connected call panel exposes received volume up to 200 percent', () => {
+  const panel = fs.readFileSync('public/call-ui.js', 'utf8');
+  assert.match(panel, /Volume recebido/);
+  assert.match(panel, /slider\.max = 200/);
+  assert.match(panel, /vix:output-volume-changed/);
+});
+
 test('voice activation mutes silence independently without pausing participant tracks', () => {
   const source = fs.readFileSync('public/voice-controls.js', 'utf8');
   const start = source.indexOf('  const clamp');

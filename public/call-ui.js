@@ -12,6 +12,15 @@
     button.innerHTML = `<span class="call-action-icon" aria-hidden="true">${icon}</span><span>${text}</span>`;
     return button;
   }
+  function outputVolumeControl() {
+    const saved = Math.max(0, Math.min(200, Number(readSettings().outputVolume ?? 130)));
+    const box = document.createElement('label'); box.className = 'call-output-volume';
+    const head = document.createElement('span'), title = document.createElement('strong'), value = document.createElement('output');
+    title.textContent = 'Volume recebido'; value.value = `${saved}%`; head.append(title, value);
+    const slider = document.createElement('input'); slider.type = 'range'; slider.min = 0; slider.max = 200; slider.step = 1; slider.value = saved; slider.setAttribute('aria-label', 'Volume recebido de todos os usuários');
+    const apply = () => { const volume = Math.max(0, Math.min(200, Number(slider.value))); value.value = `${volume}%`; box.classList.toggle('is-boosted', volume > 100); saveSettings({ outputVolume: volume }); dispatchEvent(new CustomEvent('vix:output-volume-changed', { detail: { volume } })); };
+    slider.oninput = apply; slider.onchange = apply; box.classList.toggle('is-boosted', saved > 100); box.append(head, slider); return box;
+  }
   function streamSettings() {
     const box = document.createElement('details'); box.className = 'stream-settings compact-stream-settings'; box.open = readSettings().streamSettingsExpanded === true; box.ontoggle = () => saveSettings({ streamSettingsExpanded: box.open });
     const access = globalThis.vixStreamEntitlements?.() || { level: 0, maxResolution: 720, maxFps: 30 };
@@ -57,7 +66,7 @@
     header.querySelector('small').title = selectedVoiceChannel.name;
     const primary = document.createElement('div'); primary.className = 'call-primary-actions'; primary.append(mic, sound, camera);
     const screenRow = document.createElement('div'); screenRow.className = 'call-screen-row'; screenRow.append(screen, leave);
-    panel.replaceChildren(header, primary, screenRow, streamSettings()); panel.classList.add('is-connected');
+    panel.replaceChildren(header, primary, outputVolumeControl(), screenRow, streamSettings()); panel.classList.add('is-connected');
   };
   renderVoicePanel();
 })();

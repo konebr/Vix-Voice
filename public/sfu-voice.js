@@ -60,6 +60,13 @@
     if (audio.setSinkId && settings.output) audio.setSinkId(settings.output).catch(() => {});
   }
 
+  addEventListener('vix:output-volume-changed', () => {
+    for (const item of remoteAudio.values()) {
+      if (item.screen) globalThis.vixSetOutputVolume?.(item.audio, readSettings().outputVolume ?? 130);
+      else setAudioPreferences(participantId(item.participant), item.audio);
+    }
+  });
+
   async function resumeSfuAudio() {
     await globalThis.unlockRemoteAudio?.();
     await room?.startAudio?.();
