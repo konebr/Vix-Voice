@@ -361,8 +361,10 @@ html,body,.app,.join-modal,.management-modal,.server-invite-modal,.user-settings
 /* Menu de membro: ícones vetoriais, agrupamento e melhor leitura. */
 #member-context-menu{width:264px;padding:9px;border-radius:16px;background:linear-gradient(155deg,#222936fa,#141923fc 76%);box-shadow:0 26px 70px #000d,inset 0 1px #ffffff10}
 .member-context-item{min-height:41px;grid-template-columns:30px minmax(0,1fr) auto;gap:4px;padding:6px 8px;border-radius:10px;font-size:12px;font-weight:650}.member-context-icon{width:25px;height:25px;border-radius:8px;background:#ffffff08;color:#9fa9ba}.member-context-icon .vix-icon{width:14px;height:14px}.member-context-item:hover>.member-context-icon{background:color-mix(in srgb,var(--theme-accent) 22%,#202633);color:#e4e1ff}#member-context-menu hr{margin:7px 5px;background:#ffffff0d}
-.gm-badge{display:inline-grid;min-width:25px;height:16px;padding:0 6px;place-items:center;border:1px solid #ffd97870;border-radius:6px;background:linear-gradient(135deg,#5d4218,#271d12);box-shadow:0 0 10px #ffc84a28;color:#ffe49a;font-size:8px;font-weight:900;letter-spacing:.08em}
-#member-profile-card .member-card-chip.gm-profile-chip{--chip-color:#ffd36b;border-color:#ffd36b70;background:linear-gradient(135deg,#5d4218,#261c11);color:#ffe6a0;box-shadow:0 0 12px #ffc84a20}
+.gm-badge,.vix-leadership-badge{display:inline-flex;min-width:max-content;height:17px;align-items:center;justify-content:center;padding:0 7px;border:1px solid #e8b84f8c;border-radius:999px;background:linear-gradient(135deg,#5c4017,#23190e);box-shadow:inset 0 1px #fff2b72e,0 0 12px #eeb83924;color:#ffe29a;font-size:7px;font-weight:900;letter-spacing:.085em;line-height:1;white-space:nowrap}
+.gm-badge::before,.vix-leadership-badge::before{margin-right:4px;color:#ffd36b;content:'✦';font-size:7px}
+.message-leadership-badge{height:16px;margin-left:6px;padding:0 6px;font-size:7px;vertical-align:middle}
+#member-profile-card .member-card-chip.gm-profile-chip{--chip-color:#ffd36b;height:22px;border-color:#ffd36b70;background:linear-gradient(135deg,#5d4218,#261c11);color:#ffe6a0;box-shadow:0 0 12px #ffc84a20}
 
 /* Tela de acesso inspirada em aplicativos de comunidade, sem QR Code. */
 .join-modal{isolation:isolate;overflow:auto;background:radial-gradient(circle at 72% 28%,#347dff 0,transparent 31%),radial-gradient(circle at 22% 78%,#672bd5 0,transparent 34%),linear-gradient(125deg,#21005f 0%,#172b9a 53%,#168cff 100%)}
