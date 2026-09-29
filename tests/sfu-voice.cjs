@@ -33,6 +33,15 @@ test('group voice connects to one hosted SFU room', () => {
   assert.match(client, /row\.dataset\.voiceUserId === state\.identity\?\.id/);
 });
 
+test('users without a microphone can join voice in listen-only mode', () => {
+  const callUi = fs.readFileSync('public/call-ui.js', 'utf8');
+  assert.match(client, /microphoneStream = new MediaStream\(\)/);
+  assert.match(client, /vixVoiceListenOnly = true/);
+  assert.match(client, /entrando na sala somente para ouvir/);
+  assert.match(callUi, /Conectado para ouvir/);
+  assert.match(callUi, /mic\.disabled = listenOnly/);
+});
+
 test('SFU connection clears the legacy preparing state from the HUD', () => {
   assert.match(client, /voice-recovery-note/);
   assert.match(client, /Áudio hospedado no SFU da VPS/);
@@ -59,7 +68,7 @@ test('remote SFU audio is unlocked for browser and desktop playback', () => {
   assert.match(client, /globalThis\.unlockRemoteAudio/);
   assert.match(client, /audio\.play\(\)\.catch\(requestAudioUnlock\)/);
   assert.match(client, /document\.addEventListener\('pointerdown'/);
-  assert.match(html, /sfu-voice\.js\?v=speaking-1/);
+  assert.match(html, /sfu-voice\.js\?v=listen-only-1/);
 });
 
 

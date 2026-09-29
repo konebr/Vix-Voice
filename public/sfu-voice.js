@@ -294,6 +294,7 @@
     if (!preserveMicrophone) {
       microphoneStream?.getTracks().forEach(track => track.stop());
       microphoneStream = null;
+      globalThis.vixVoiceListenOnly = false;
       cameraStream?.getTracks().forEach(track => track.stop());
       screenStream?.getTracks().forEach(track => track.stop());
       cameraStream = null;
@@ -317,7 +318,15 @@
       // Start the browser audio context while this call still belongs to the
       // user's click. LiveKit may finish connecting after that gesture expires.
       const audioReady = globalThis.unlockRemoteAudio?.();
-      if (!microphoneStream) microphoneStream = await requestMicrophone();
+      if (!microphoneStream) {
+        try {
+          microphoneStream = await requestMicrophone();
+        } catch (microphoneError) {
+          console.warn('Microfone indisponível; entrando na sala somente para ouvir.', microphoneError);
+          microphoneStream = new MediaStream();
+          globalThis.vixVoiceListenOnly = true;
+        }
+      }
       $('voice-channel').classList.add('active');
       $('mute').disabled = false;
       voiceServerId = serverId;

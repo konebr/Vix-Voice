@@ -54,14 +54,17 @@
       return;
     }
     const micTrack = microphoneStream.getAudioTracks()[0];
-    const mic = configure(findAction(panel, labels.mic), micTrack?.enabled ? '●' : '×', micTrack?.enabled ? 'Microfone' : 'Silenciado', micTrack?.enabled);
+    const listenOnly = !micTrack;
+    const mic = configure(findAction(panel, labels.mic), micTrack?.enabled ? '●' : '×', listenOnly ? 'Sem microfone' : micTrack.enabled ? 'Microfone' : 'Silenciado', Boolean(micTrack?.enabled));
+    mic.disabled = listenOnly;
+    mic.title = listenOnly ? 'Conectado somente para ouvir. Escolha um microfone nas configurações quando quiser falar.' : mic.title;
     const sound = configure(findAction(panel, labels.sound), deafened ? '×' : '◖', deafened ? 'Sem áudio' : 'Ouvir', !deafened);
     const camera = configure(findAction(panel, labels.camera), '▣', cameraStream ? 'Câmera ligada' : 'Câmera', !!cameraStream);
     const screen = configure(findAction(panel, labels.screen), screenStream ? '■' : '↗', screenStream ? 'Parar transmissão' : 'Compartilhar tela', !!screenStream, !!screenStream);
     const leave = configure(findAction(panel, labels.leave), '☎', 'Sair da voz', false, true);
     leave.onclick = () => stopVoice();
     const header = document.createElement('header'); header.className = 'call-panel-head';
-    header.innerHTML = `<div><span class="call-status-dot${voiceRoomConnected ? '' : ' is-connecting'}"></span><strong>${voiceRoomConnected ? (screenStream ? 'Transmitindo' : 'Voz conectada') : 'Conectando…'}</strong></div><small></small>`;
+    header.innerHTML = `<div><span class="call-status-dot${voiceRoomConnected ? '' : ' is-connecting'}"></span><strong>${voiceRoomConnected ? (screenStream ? 'Transmitindo' : listenOnly ? 'Conectado para ouvir' : 'Voz conectada') : 'Conectando…'}</strong></div><small></small>`;
     header.querySelector('small').textContent = selectedVoiceChannel.name;
     header.querySelector('small').title = selectedVoiceChannel.name;
     const primary = document.createElement('div'); primary.className = 'call-primary-actions'; primary.append(mic, sound, camera);
