@@ -45,6 +45,28 @@ test('screen sharing remains available when an older cached helper is missing', 
   assert.match(app, /typeof prepareScreenStream==='function'\?prepareScreenStream\(captured\):captured/);
 });
 
+test('ending screen capture also stops its audio track', () => {
+  assert.match(app, /function stopScreenShare\(stream=screenStream\)/);
+  assert.match(app, /stream\.getTracks\(\)\.forEach\(track=>\{if\(track\.readyState!==['"]ended['"]\)track\.stop\(\)\}\)/);
+  assert.match(app, /addEventListener\(['"]ended['"],\(\)=>stopScreenShare\(activeCapture\),\{once:true\}\)/);
+});
+
+test('stream viewer is mounted over chat and controls screen audio lifecycle', () => {
+  const viewer = fs.readFileSync('public/professional-streams.js', 'utf8');
+  const css = fs.readFileSync('public/professional-streams.css', 'utf8');
+  assert.match(viewer, /document\.querySelector\(['"]\.chat['"]\)/);
+  assert.match(viewer, /setStreamAudio\(streams\.get\(selected\), false\)/);
+  assert.match(viewer, /setStreamAudio\(streamItem, streamId === id\)/);
+  assert.match(viewer, /pendingAudio\.set\(id, event\.detail\.audio\)/);
+  assert.match(css, /#professional-stream-viewer:not\(\[hidden\]\)\{position:absolute/);
+});
+
+test('stopping a local stream asks the SFU to unpublish immediately', () => {
+  const client = fs.readFileSync('public/sfu-voice.js', 'utf8');
+  assert.match(client, /addEventListener\(['"]vix:local-screen-stopped['"], \(\) =>/);
+  assert.match(client, /Falha ao encerrar a transmissão no SFU/);
+});
+
 test('screen capture prioritizes motion at both 30 and 60 FPS', () => {
   for (const fps of [30, 60]) {
     const context = { readSettings: () => ({ screenFps: fps }) };
@@ -72,7 +94,7 @@ test('SFU publication sends the selected FPS and bitrate through the screen enco
       mediaSyncing: false, microphoneStream: null, micGainStream: null,
       screenStream: { getVideoTracks: () => [video], getAudioTracks: () => [] },
       publishedScreenVideoTrack: null, publishedScreenAudioTrack: null,
-      screenVideoPublication: null, screenAudioPublication: null, setConnectionUi() {}
+      screenVideoPublication: null, screenAudioPublication: null, setConnectionUi() {}, addEventListener() {}
     };
     vm.createContext(context); vm.runInContext(definition + '\n' + client.slice(start, end), context);
     await context.syncPublishedMedia();

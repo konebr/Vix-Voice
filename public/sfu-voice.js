@@ -143,10 +143,12 @@
     audio.dataset.sfuParticipant = participantId(participant);
     if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) {
       globalThis.vixSetOutputVolume?.(audio, readSettings().outputVolume ?? 130);
-      audio.muted = deafened;
+      // Screen-share audio follows the viewer tab. It stays silent until the
+      // user explicitly opens that transmission.
+      audio.muted = true;
     } else setAudioPreferences(participantId(participant), audio);
     document.body.append(audio);
-    audio.play().catch(requestAudioUnlock);
+    if (publicationInfo.source !== LK.Track.Source.ScreenShareAudio) audio.play().catch(requestAudioUnlock);
     remoteAudio.set(publicationInfo.trackSid, { track, audio, participant, screen: publicationInfo.source === LK.Track.Source.ScreenShareAudio });
     if (publicationInfo.source === LK.Track.Source.ScreenShareAudio) dispatchEvent(new CustomEvent('vix:stream-audio', { detail: { id: participantId(participant), audio } }));
   }
@@ -216,6 +218,10 @@
     if (screenChanged) setConnectionUi(true);
     } finally { mediaSyncing = false; }
   }
+
+  addEventListener('vix:local-screen-stopped', () => {
+    syncPublishedMedia().catch(error => console.warn('Falha ao encerrar a transmissão no SFU', error));
+  });
 
   addEventListener('vix:stream-view-quality', event => {
     const id = String(event.detail?.id || '');
@@ -345,7 +351,7 @@
         for (const item of remoteAudio.values()) {
           if (item.screen) {
             globalThis.vixSetOutputVolume?.(item.audio, readSettings().outputVolume ?? 130);
-            item.audio.muted = deafened;
+            if (deafened) item.audio.muted = true;
           } else setAudioPreferences(participantId(item.participant), item.audio);
         }
       }, 500);

@@ -1,5 +1,5 @@
 (() => {
-  const streams = new Map();
+  const streams = new Map(), pendingAudio = new Map();
   let selected = null, popout = null;
   const list = document.createElement('section');
   list.id = 'professional-stream-list';
@@ -9,13 +9,15 @@
   const viewer = document.createElement('section');
   viewer.id = 'professional-stream-viewer'; viewer.hidden = true;
   viewer.innerHTML = '<div class="stream-viewer-shell"><header><div><span class="stream-live-dot"></span><div><strong></strong><small>TRANSMISSÃO AO VIVO</small></div></div><nav><button data-action="popout" type="button">Janela destacada</button><button data-action="fullscreen" type="button">Tela cheia</button><button data-action="close" type="button" aria-label="Fechar">×</button></nav></header><main><video autoplay playsinline></video><p role="status"></p></main><footer><label><span>Volume da transmissão</span><input type="range" min="0" max="100" value="100"><output>100%</output></label></footer></div>';
-  document.body.append(viewer);
+  const chat = document.querySelector('.chat');
+  (chat || document.body).append(viewer);
   const shell = viewer.querySelector('.stream-viewer-shell'), main = viewer.querySelector('main'), placeholderVideo = viewer.querySelector('video'), status = viewer.querySelector('[role="status"]'), volume = viewer.querySelector('input'), output = viewer.querySelector('output');
   let video = placeholderVideo, activeVideo = null, activeVideoStyle = '';
 
   function releaseVideo() { if (!activeVideo) return; activeVideo.pause(); activeVideo.hidden = true; activeVideo.style.cssText = activeVideoStyle; document.body.append(activeVideo); activeVideo = null; video = placeholderVideo; }
-  function closeViewer() { if (selected) dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id: selected, active: false } })); selected = null; releaseVideo(); placeholderVideo.pause(); placeholderVideo.srcObject = null; viewer.hidden = true; }
+  function closeViewer() { if (selected) { dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id: selected, active: false } })); setStreamAudio(streams.get(selected), false); } selected = null; releaseVideo(); placeholderVideo.pause(); placeholderVideo.srcObject = null; viewer.hidden = true; }
   function streamMedia(item) { const source = item?.video?.srcObject || item?.stream || null, track = source?.getVideoTracks?.().find(value => value.readyState === 'live'); if (!track) return null; if (item.playbackTrack !== track) { item.playbackTrack = track; item.playbackStream = new MediaStream([track]); } return item.playbackStream; }
+  function setStreamAudio(item, active) { if (!item?.audio) return; const audible = active && !deafened; item.audio.muted = !audible; if (audible) item.audio.play().catch(() => {}); else item.audio.pause(); }
   function applyVolume(item, value) { const amount = Number(value) / 100; if (item?.audio) item.audio.volume = amount; video.volume = amount; output.value = `${value}%`; }
   function mountVideo(item) { const element = item?.video; if (!element) return false; if (activeVideo !== element) { releaseVideo(); activeVideo = element; activeVideoStyle = element.style.cssText; element.style.cssText = ''; element.hidden = false; element.classList.add('active-stream-video'); main.prepend(element); } video = element; video.muted = Boolean(item.local); return true; }
   function watch(id) {
@@ -23,6 +25,7 @@
     dispatchEvent(new CustomEvent('vix:stream-view-quality', { detail: { id, active: true } }));
     viewer.querySelector('header strong').textContent = item.name; status.textContent = 'Preparando transmissão…';
     const mounted = mountVideo(item), media = streamMedia(item); if (!mounted) { video = placeholderVideo; video.muted = true; if (video.srcObject !== media) video.srcObject = media; }
+    for (const [streamId, streamItem] of streams) setStreamAudio(streamItem, streamId === id);
     applyVolume(item, volume.value); if (!media) status.textContent = 'Aguardando os primeiros quadros…'; else video.play().catch(() => { status.textContent = 'Clique no vídeo para iniciar a reprodução.'; });
   }
   function render() {
@@ -30,9 +33,9 @@
     list.hidden = !streams.size;
     for (const [id, item] of streams) { const button = document.createElement('button'); button.type = 'button'; button.innerHTML = `<span class="stream-live-dot"></span><span><strong></strong><small>AO VIVO · Assistir</small></span>`; button.querySelector('strong').textContent = item.name; button.onclick = () => watch(id); body.append(button); }
   }
-  function remove(id) { const key = String(id), item = streams.get(key); streams.delete(key); if (selected === key) closeViewer(); if (item?.video && !item.local) item.video.remove(); render(); }
-  addEventListener('vix:stream-added', event => { const item = event.detail; streams.set(String(item.id), { ...streams.get(String(item.id)), ...item }); render(); if (selected === String(item.id)) watch(selected); });
-  addEventListener('vix:stream-audio', event => { const id = String(event.detail.id), item = streams.get(id); if (!item) return; item.audio = event.detail.audio; applyVolume(item, volume.value); });
+  function remove(id) { const key = String(id), item = streams.get(key); setStreamAudio(item, false); if (selected === key) closeViewer(); streams.delete(key); pendingAudio.delete(key); if (item?.video && !item.local) item.video.remove(); render(); }
+  addEventListener('vix:stream-added', event => { const item = event.detail, id = String(item.id), audio = pendingAudio.get(id); streams.set(id, { ...streams.get(id), ...item, ...(audio ? { audio } : {}) }); pendingAudio.delete(id); render(); if (selected === id) watch(selected); });
+  addEventListener('vix:stream-audio', event => { const id = String(event.detail.id), item = streams.get(id); if (!item) { pendingAudio.set(id, event.detail.audio); event.detail.audio.muted = true; event.detail.audio.pause(); return; } item.audio = event.detail.audio; setStreamAudio(item, selected === id); applyVolume(item, volume.value); });
   addEventListener('vix:stream-removed', event => remove(event.detail.id));
   viewer.querySelector('[data-action="close"]').onclick = closeViewer;
   viewer.querySelector('[data-action="fullscreen"]').onclick = () => shell.requestFullscreen?.().catch(() => vixToast('Tela cheia indisponível.', 'error'));
